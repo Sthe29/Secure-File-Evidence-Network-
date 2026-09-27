@@ -1,0 +1,177 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  COMPLAINANT
+  CSC_OFFICER
+  DETECTIVE
+  COMMANDER
+  ADMINISTRATOR
+}
+
+enum ReportStatus {
+  AWAITING_REVIEW
+  UNDER_STATION_REVIEW
+  ADDITIONAL_INFO_REQUIRED
+  REGISTERED_TO_CASE
+}
+
+enum CaseStatus {
+  REGISTERED
+  INVESTIGATION_ACTIVE
+  EVIDENCE_ANALYSIS
+  AT_NPA_OR_COURT
+  FINALIZED
+  SUSPENDED
+}
+
+enum TransferStatus {
+  AWAITING_ACKNOWLEDGEMENT
+  ACKNOWLEDGED_RECEIVED
+}
+
+enum DiaryEntryType {
+  INVESTIGATION_NOTE
+  EVIDENCE_CATALOGUED
+  WITNESS_INTERVIEW
+  COURT_UPDATE
+  COMPLAINANT_UPDATE
+  DIRECTIVE
+}
+
+enum ReviewOutcome {
+  INVESTIGATION_SATISFACTORY
+  FURTHER_DIRECTIVES_ISSUED
+  READY_FOR_NPA_OR_COURT
+  DOCKET_CLOSURE_RECOMMENDED
+}
+
+model User {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  personnelNumber String?  @unique
+  passwordHash    String
+  fullName        String
+  rank            String?
+  station         String?
+  division        String?
+  phoneNumber     String?
+  role            UserRole
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  reports         IncidentReport[] @relation("ComplainantReports")
+  registeredCases Case[] @relation("CaseRegistrar")
+  auditEntries    AuditEntry[]
+}
+
+model IncidentReport {
+  id              String       @id @default(cuid())
+  referenceNumber String       @unique
+  complainantId   String
+  complainant     User         @relation("ComplainantReports", fields: [complainantId], references: [id])
+  incidentType    String
+  incidentDate    DateTime
+  incidentTime    String?
+  address         String
+  suburb          String
+  city            String
+  province        String
+  preferredStation String?
+  description     String
+  involvedParties Json?
+  attachments     Json?
+  status          ReportStatus @default(AWAITING_REVIEW)
+  stationNotes    String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  case            Case?
+}
+
+model Case {
+  id                 String     @id @default(cuid())
+  caseNumber         String     @unique
+  reportId           String     @unique
+  report             IncidentReport @relation(fields: [reportId], references: [id])
+  registeredById     String
+  registeredBy       User       @relation("CaseRegistrar", fields: [registeredById], references: [id])
+  policeStation      String
+  incidentType       String
+  statutoryCode      String?
+  priorityLevel      String     @default("Standard")
+  status             CaseStatus @default(REGISTERED)
+  currentCustodianId String?
+  currentCustodianName String
+  currentCustodianRole String
+  registeredAt       DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  transfers          DocketTransfer[]
+  diaryEntries       InvestigationDiaryEntry[]
+  reviews            SupervisoryReview[]
+  audits             AuditEntry[]
+}
+
+model DocketTransfer {
+  id                  String         @id @default(cuid())
+  caseId              String
+  case                Case           @relation(fields: [caseId], references: [id])
+  previousCustodian   String
+  newCustodian        String
+  senderName          String
+  senderRole          String
+  recipientName       String
+  recipientRole       String
+  reason              String
+  sentAt              DateTime       @default(now())
+  status              TransferStatus @default(AWAITING_ACKNOWLEDGEMENT)
+  acknowledgedAt      DateTime?
+  acknowledgementNotes String?
+}
+
+model InvestigationDiaryEntry {
+  id        String         @id @default(cuid())
+  caseId    String
+  case      Case           @relation(fields: [caseId], references: [id])
+  authorName String
+  authorRole String
+  entryType DiaryEntryType
+  actionTaken String
+  outcome   String
+  nextAction String?
+  createdAt DateTime       @default(now())
+}
+
+model SupervisoryReview {
+  id              String        @id @default(cuid())
+  caseId          String
+  case            Case          @relation(fields: [caseId], references: [id])
+  commanderName   String
+  reviewNotes     String
+  furtherAction   String?
+  nextReviewDate  DateTime?
+  outcome         ReviewOutcome
+  createdAt       DateTime      @default(now())
+}
+
+model AuditEntry {
+  id          String   @id @default(cuid())
+  caseId      String?
+  case        Case?    @relation(fields: [caseId], references: [id])
+  referenceNumber String?
+  entityType  String?
+  entityId    String?
+  actorId     String?
+  actor       User?    @relation(fields: [actorId], references: [id])
+  action      String
+  description String
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([caseId, createdAt])
+  @@index([referenceNumber, createdAt])
+}

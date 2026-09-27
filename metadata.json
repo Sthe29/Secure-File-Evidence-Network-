@@ -1,0 +1,7 @@
+{
+  "name": "SFEN - Secure File & Evidence Network",
+  "description": "Secure Police Case Docket and Complainant Incident Reporting Portal for tracking incident statements, official police dockets, and service grievances.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
