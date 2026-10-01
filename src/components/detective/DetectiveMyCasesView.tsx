@@ -127,9 +127,13 @@ export const DetectiveMyCasesView: React.FC<DetectiveMyCasesViewProps> = ({
                     )}
 
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      c.priorityLevel === 'Urgent' || c.priorityLevel === 'Critical'
-                        ? 'bg-red-500/15 text-red-300 border border-red-500/30'
-                        : 'bg-slate-800 text-slate-400'
+                      c.priorityLevel === 'Critical'
+                        ? 'bg-red-600 text-white border border-red-500'
+                        : c.priorityLevel === 'Urgent'
+                          ? 'bg-red-500/20 text-red-300 border border-red-500/40'
+                          : c.priorityLevel === 'High Priority'
+                            ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                            : 'bg-slate-800/70 text-slate-300 border border-slate-700'
                     }`}>
                       {c.priorityLevel} Priority
                     </span>

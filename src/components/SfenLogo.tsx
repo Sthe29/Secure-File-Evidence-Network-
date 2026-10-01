@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, FileText } from 'lucide-react';
+import sapsBadge from '../assets/branding/saps-badge.png';
 
 interface SfenLogoProps {
   className?: string;
@@ -13,25 +13,13 @@ export const SfenLogo: React.FC<SfenLogoProps> = ({ className = '', size = 'md' 
     lg: 'w-20 h-20'
   };
 
-  const iconSizeMap = {
-    sm: 20,
-    md: 28,
-    lg: 40
-  };
-
   return (
-    <div id="sfen-logo-container" className={`relative flex items-center justify-center ${className}`}>
-      {/* Outer Hex/Shield Container */}
-      <div className={`relative ${sizeMap[size]} rounded-lg bg-black border border-blue-600 p-2.5 flex items-center justify-center`}>
-        {/* Central emblem: Shield with Docket & Lock layer */}
-        <div className="relative flex items-center justify-center text-blue-500">
-          <ShieldCheck size={iconSizeMap[size]} className="stroke-[1.8] text-blue-500" />
-          <FileText size={iconSizeMap[size] * 0.45} className="absolute text-white -mt-1 stroke-[2.2]" />
-        </div>
-
-        {/* Small solid indicator without flashing */}
-        <span className="absolute bottom-1 right-1 h-1.5 w-1.5 rounded-sm bg-blue-500" />
-      </div>
+    <div id="sfen-logo-container" className={`flex items-center justify-center ${className}`}>
+      <img
+        src={sapsBadge}
+        alt="South African Police Service badge"
+        className={`${sizeMap[size]} object-contain`}
+      />
     </div>
   );
 };

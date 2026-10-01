@@ -45,19 +45,108 @@ export const ComplainantDashboard: React.FC<ComplainantDashboardProps> = ({
   const [notifications, setNotifications] = useState<ComplainantNotification[]>([]);
 
   const loadData = async () => {
+    let liveReports: IncidentReport[] = [];
     try {
       const token = citizen.token || localStorage.getItem('sfen_auth_token');
-      setReports(token ? await getIncidentReportsFromApi(token, citizen) : getIncidentReports(citizen.id));
+      liveReports = token ? await getIncidentReportsFromApi(token, citizen) : getIncidentReports(citizen.id);
+      setReports(liveReports);
     } catch {
       setReports([]);
     }
-    setCases(getRegisteredCases(citizen.id));
+    const localCases = getRegisteredCases(citizen.id);
+    const liveCases = liveReports
+      .filter((report) => report.status === 'Registered to Case' && report.linkedCaseNumber)
+      .map((report) => ({
+        id: `live_${report.id}`,
+        caseNumber: report.linkedCaseNumber!,
+        reportReference: report.referenceNumber,
+        userId: citizen.id,
+        incidentType: report.incidentType,
+        policeStation: report.policeStation,
+        investigatingOfficer: 'Pending Detective Assignment',
+        officerRank: 'Detective Branch',
+        dateRegistered: report.submittedAt.slice(0, 10),
+        currentStatus: 'Case Registered' as const,
+        progressStage: 1,
+        lastUpdateDate: report.submittedAt.slice(0, 10),
+        lastUpdateSummary: `Official CAS docket ${report.linkedCaseNumber} was registered from your online report.`,
+        timeline: [
+          {
+            title: 'Online Report Submitted',
+            date: report.submittedAt.slice(0, 10),
+            description: `Your online report ${report.referenceNumber} was received by SFEN.`,
+            completed: true,
+            current: false
+          },
+          {
+            title: 'Official CAS Docket Registered',
+            date: report.submittedAt.slice(0, 10),
+            description: `The station registered your matter as official case ${report.linkedCaseNumber}.`,
+            completed: true,
+            current: !report.detectiveReceipt
+          },
+          {
+            title: 'Detective Docket Receipt',
+            date: report.detectiveReceipt ? report.detectiveReceipt.acknowledgedAt.slice(0, 10) : 'Pending',
+            description: report.detectiveReceipt
+              ? `${report.detectiveReceipt.detectiveName} confirmed receipt of the docket and has taken custody of the case.`
+              : 'The docket is awaiting formal receipt by an investigating detective.',
+            completed: Boolean(report.detectiveReceipt),
+            current: Boolean(report.detectiveReceipt)
+          },
+          {
+            title: 'Investigation Updates',
+            date: 'Pending',
+            description: 'The investigating detective will record verified progress updates as the case develops.',
+            completed: false,
+            current: false
+          }
+        ]
+      }));
+    const combinedCases = new Map(localCases.map((item) => [item.caseNumber, item]));
+    liveCases.forEach((item) => combinedCases.set(item.caseNumber, item));
+    setCases(Array.from(combinedCases.values()));
     setComplaints(getServiceComplaints(citizen.id));
-    setNotifications(getNotifications(citizen.id));
+    const localNotifications = getNotifications(citizen.id);
+    const caseNotifications = liveReports
+      .filter((report) => report.status === 'Registered to Case' && report.linkedCaseNumber)
+      .map((report) => ({
+        id: `case-registered-${report.id}`,
+        userId: citizen.id,
+        type: 'case' as const,
+        title: 'Official CAS Case Registered',
+        message: `Your report ${report.referenceNumber} has been registered as official case ${report.linkedCaseNumber}.`,
+        timestamp: report.submittedAt,
+        read: false,
+        linkedId: report.linkedCaseNumber,
+        linkedTab: 'my-cases' as const
+      }));
+    const detectiveReceiptNotifications = liveReports
+      .filter((report) => report.detectiveReceipt && report.linkedCaseNumber)
+      .map((report) => ({
+        id: `detective-receipt-${report.id}`,
+        userId: citizen.id,
+        type: 'case' as const,
+        title: 'Detective Has Taken Over Your Case',
+        message: `${report.detectiveReceipt!.detectiveName} has confirmed receipt of the docket for ${report.linkedCaseNumber}.`,
+        timestamp: report.detectiveReceipt!.acknowledgedAt,
+        read: false,
+        linkedId: report.linkedCaseNumber,
+        linkedTab: 'my-cases' as const
+      }));
+    const combinedNotifications = new Map(localNotifications.map((item) => [item.id, item]));
+    caseNotifications.forEach((item) => combinedNotifications.set(item.id, item));
+    detectiveReceiptNotifications.forEach((item) => combinedNotifications.set(item.id, item));
+    setNotifications(Array.from(combinedNotifications.values()));
   };
 
   useEffect(() => {
     void loadData();
+  }, [citizen.id]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => { void loadData(); }, 10000);
+    return () => window.clearInterval(intervalId);
   }, [citizen.id]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -86,7 +175,7 @@ export const ComplainantDashboard: React.FC<ComplainantDashboardProps> = ({
   return (
     <div 
       id="complainant-portal-shell" 
-      className={`min-h-screen flex flex-col justify-between selection:bg-blue-600 selection:text-white ${
+      className={`sfen-shell min-h-screen flex flex-col justify-between selection:bg-blue-600 selection:text-white ${
         isDark ? 'bg-black text-white' : 'bg-white text-black'
       }`}
     >
@@ -151,7 +240,7 @@ export const ComplainantDashboard: React.FC<ComplainantDashboardProps> = ({
         </div>
 
         {/* Content Area */}
-        <main className="flex-1 min-w-0 py-6 sm:py-8 md:pl-8">
+        <main className={`sfen-content flex-1 min-w-0 py-6 sm:py-8 md:pl-8 ${activeTab === 'dashboard' ? 'sfen-dashboard' : ''}`}>
           
           {activeTab === 'dashboard' && (
             <DashboardOverview

@@ -28,27 +28,52 @@ async function main() {
   const testMarker = `API workflow test ${Date.now()}`;
   let reportId: string | undefined;
   let caseId: string | undefined;
+  let walkInReportId: string | undefined;
+  let walkInComplainantId: string | undefined;
 
   try {
     const [citizen, officer, detective, commander, administrator] = await Promise.all([
-      login('thandi.molefe@example.com'),
+      login('9001015009087'),
       login('POL-10824'),
       login('POL-20491'),
       login('POL-30912'),
       login('POL-40199'),
     ]);
 
-    const report = await request<{ id: string; referenceNumber: string }>('/api/reports', {
+    const report = await request<{ id: string; referenceNumber: string; requiresImmediateAttention: boolean }>('/api/reports', {
       method: 'POST',
       headers: { Authorization: `Bearer ${citizen.token}` },
       body: JSON.stringify({
         incidentType: 'Theft / Burglary', incidentDate: '2026-09-26', incidentTime: '10:00',
-        address: '100 Grayston Drive', suburb: 'Sandton', city: 'Johannesburg', province: 'Gauteng',
-        preferredStation: 'SAPS Sandton Police Station', description: testMarker,
+        address: '100 Grayston Drive', suburb: 'Sandton', city: 'Johannesburg', province: 'Gauteng', latitude: -26.1076, longitude: 28.0567,
+        preferredStation: 'SAPS Sandton Police Station', description: testMarker, requiresImmediateAttention: true,
       }),
     });
     assert.equal(report.status, 201);
+    assert.equal(report.data.requiresImmediateAttention, true, 'Expected urgent-attention flag on the submitted report.');
     reportId = report.data.id;
+
+    const urgentAlerts = await request<Array<{ id: string; latitude?: number; longitude?: number; complainant: { fullName: string; phoneNumber?: string } }>>('/api/alerts/urgent-reports', {
+      headers: { Authorization: `Bearer ${officer.token}` },
+    });
+    assert.equal(urgentAlerts.status, 200);
+    const urgentAlert = urgentAlerts.data.find((item) => item.id === reportId);
+    assert.ok(urgentAlert, 'Expected urgent report in the officer alert feed.');
+    assert.equal(urgentAlert.latitude, -26.1076);
+    assert.equal(urgentAlert.longitude, 28.0567);
+    assert.equal(urgentAlert.complainant.fullName, citizen.user.fullName);
+
+    const walkIn = await request<{ id: string; referenceNumber: string; status: string; complainantId: string }>('/api/walk-in-reports', {
+      method: 'POST', headers: { Authorization: `Bearer ${officer.token}` },
+      body: JSON.stringify({
+        fullName: 'Walk-in Test Citizen', phoneNumber: '0825550101', nationalId: String(Date.now()).slice(-13), incidentType: 'Robbery', incidentDate: '2026-09-26', incidentTime: '11:00',
+        address: '1 Smith Street', suburb: 'Durban Central', city: 'Durban', province: 'KwaZulu-Natal', description: testMarker,
+      }),
+    });
+    assert.equal(walkIn.status, 201);
+    assert.equal(walkIn.data.status, 'UNDER_STATION_REVIEW');
+    walkInReportId = walkIn.data.id;
+    walkInComplainantId = walkIn.data.complainantId;
 
     const registered = await request<{ id: string; caseNumber: string }>(`/api/reports/${reportId}/register-case`, {
       method: 'POST', headers: { Authorization: `Bearer ${officer.token}` },
@@ -89,7 +114,7 @@ async function main() {
 
     const activity = await request<Array<{ action: string; referenceNumber?: string }>>('/api/activity?limit=250', { headers: { Authorization: `Bearer ${administrator.token}` } });
     assert.equal(activity.status, 200);
-    assert.ok(activity.data.some(entry => entry.action === 'INCIDENT_REPORT_SUBMITTED' && entry.referenceNumber === report.data.referenceNumber), 'Expected online report submission in system activity.');
+    assert.ok(activity.data.some(entry => entry.action === 'URGENT_INCIDENT_REPORT_SUBMITTED' && entry.referenceNumber === report.data.referenceNumber), 'Expected urgent online report submission in system activity.');
     assert.ok(activity.data.some(entry => entry.action === 'CASE_REGISTERED' && entry.referenceNumber === registered.data.caseNumber), 'Expected CAS registration in system activity.');
     console.log('PASS: Real SFEN API workflow completed successfully.');
   } finally {
@@ -104,6 +129,9 @@ async function main() {
     }
     if (reportId) await prisma.auditEntry.deleteMany({ where: { entityId: reportId } });
     if (reportId) await prisma.incidentReport.delete({ where: { id: reportId } });
+    if (walkInReportId) await prisma.auditEntry.deleteMany({ where: { entityId: walkInReportId } });
+    if (walkInReportId) await prisma.incidentReport.delete({ where: { id: walkInReportId } });
+    if (walkInComplainantId) await prisma.user.delete({ where: { id: walkInComplainantId } });
     await prisma.$disconnect();
   }
 }

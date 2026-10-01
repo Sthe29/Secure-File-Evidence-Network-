@@ -46,8 +46,36 @@ export const DetectivePage: React.FC<DetectivePageProps> = ({ user, onSignOut })
   };
 
   // Load detective's data strictly filtered to their personnel profile
-  const refreshDetectiveData = (syncActiveWorkspace: boolean = true) => {
-    const cases = detectiveService.getAssignedCases(user.personnelNumber);
+  const refreshDetectiveData = async (syncActiveWorkspace: boolean = true) => {
+    const localCases = detectiveService.getAssignedCases(user.personnelNumber);
+    let cases = localCases;
+    if (user.token) {
+      try {
+        const response = await fetch('/api/cases', { headers: { Authorization: `Bearer ${user.token}` } });
+        if (response.ok) {
+          const databaseCases = await response.json() as any[];
+          const liveCases = databaseCases.map((item) => ({
+            id: item.id, caseNumber: item.caseNumber, reportReference: item.report.referenceNumber,
+            incidentType: item.incidentType, offenceSubcategory: item.incidentType, policeStation: item.policeStation,
+            dateReported: item.registeredAt.slice(0, 10), incidentDate: item.report.incidentDate.slice(0, 10), incidentTime: item.report.incidentTime || undefined,
+            incidentLocation: { address: item.report.address, suburb: item.report.suburb, city: item.report.city, province: item.report.province },
+            complainant: { fullName: item.report.complainant.fullName, phoneNumber: item.report.complainant.phoneNumber || '', email: item.report.complainant.email, nationalId: item.report.complainant.nationalId || undefined, statementSummary: item.report.description },
+            investigatingOfficerId: user.id, investigatingOfficerName: user.fullName, investigatingOfficerRank: user.rank, investigatingOfficerPersonnelNumber: user.personnelNumber,
+            assignedDate: item.registeredAt.slice(0, 10), lastActivityDate: item.registeredAt.slice(0, 10), currentStatus: 'Investigation Active',
+            registeredByOfficerName: item.registeredBy.fullName, registeredByOfficerRank: item.registeredBy.rank || 'CSC Officer', registeredByPersonnelNumber: item.registeredBy.personnelNumber || undefined, registeredAt: item.registeredAt,
+            currentCustodianName: item.currentCustodianName, currentCustodianRank: 'CSC Officer', currentCustodianPersonnelNumber: user.personnelNumber, currentCustodianDepartment: 'Detective Branch',
+            custodyStatus: 'TRANSFERRED_AWAITING_RECEIPT', isCustodyAcknowledgedByDetective: false,
+            priorityLevel: item.priorityLevel || 'Standard', statutoryCode: item.statutoryCode || undefined,
+            initialResponseDueAt: new Date(new Date(item.registeredAt).getTime() + 7 * 86400000).toISOString()
+          } as DetectiveCaseDocket));
+          const combined = new Map(localCases.map((item) => [item.caseNumber, item]));
+          liveCases.forEach((item) => combined.set(item.caseNumber, item));
+          cases = Array.from(combined.values());
+        }
+      } catch {
+        // The local docket list remains available when the API is unavailable.
+      }
+    }
     const insts = detectiveService.getSupervisorInstructions({ detectivePersonnelNumber: user.personnelNumber });
     const notifs = detectiveService.getDetectiveNotifications(user.personnelNumber);
 
@@ -65,7 +93,7 @@ export const DetectivePage: React.FC<DetectivePageProps> = ({ user, onSignOut })
   };
 
   useEffect(() => {
-    refreshDetectiveData(true);
+    void refreshDetectiveData(true);
   }, [user.personnelNumber]);
 
   // Calculations for badges
@@ -115,7 +143,7 @@ export const DetectivePage: React.FC<DetectivePageProps> = ({ user, onSignOut })
   return (
     <div 
       id="detective-page-container" 
-      className={`min-h-screen flex flex-col justify-between selection:bg-blue-600 selection:text-white ${
+      className={`sfen-shell sfen-staff-shell min-h-screen flex flex-col justify-between selection:bg-blue-600 selection:text-white ${
         isDark ? 'bg-black text-white' : 'bg-white text-black'
       }`}
     >
@@ -181,7 +209,7 @@ export const DetectivePage: React.FC<DetectivePageProps> = ({ user, onSignOut })
         </div>
 
         {/* Dynamic Content Area */}
-        <main className="flex-1 min-w-0 py-6 sm:py-8 md:pl-8">
+        <main className={`sfen-content flex-1 min-w-0 py-6 sm:py-8 md:pl-8 ${activeTab === 'dashboard' ? 'sfen-dashboard' : ''}`}>
           {activeTab === 'dashboard' && (
             <DetectiveDashboardView
               detective={user}
@@ -215,7 +243,7 @@ export const DetectivePage: React.FC<DetectivePageProps> = ({ user, onSignOut })
       }`}>
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>
-            {user.station || 'SAPS Sandton Police Station'} • Republic of South Africa
+            {user.station || 'SAPS Berea Police Station'} • Republic of South Africa
           </span>
           <span className="font-mono">
             Investigating Officer: {user.rank} {user.fullName} ({user.personnelNumber}) • Criminal Investigation Directorate (CID)

@@ -8,6 +8,7 @@ import {
   CaseAuditEntry,
   DetectiveNotification
 } from '../types/detective';
+import { addNotification, getRegisteredCases } from './complainantService';
 
 const DETECTIVE_STORAGE_KEYS = {
   CASES: 'sfen_detective_dockets',
@@ -59,7 +60,7 @@ const SEED_CASES: DetectiveCaseDocket[] = [
     reportReference: 'SFEN-RPT-000088',
     incidentType: 'Fraud / Cybercrime',
     offenceSubcategory: 'Electronic Banking Phishing & Unauthorized Interception',
-    policeStation: 'SAPS Sandton Police Station',
+    policeStation: 'SAPS Berea Police Station',
     dateReported: '2026-08-22',
     incidentDate: '2026-08-20',
     incidentTime: '11:15',
@@ -112,7 +113,7 @@ const SEED_CASES: DetectiveCaseDocket[] = [
     reportReference: 'SFEN-RPT-000109',
     incidentType: 'Commercial Extortion / Wire Fraud',
     offenceSubcategory: 'Corporate Email Compromise & Syndicate Interception',
-    policeStation: 'SAPS Sandton Police Station',
+    policeStation: 'SAPS Berea Police Station',
     dateReported: '2026-09-12',
     incidentDate: '2026-09-10',
     incidentTime: '08:45',
@@ -162,7 +163,7 @@ const SEED_CASES: DetectiveCaseDocket[] = [
     reportReference: 'SFEN-RPT-000115',
     incidentType: 'Fraud / Cybercrime',
     offenceSubcategory: 'SIM-Swap Identity Theft & Payroll Diversion',
-    policeStation: 'SAPS Sandton Police Station',
+    policeStation: 'SAPS Berea Police Station',
     dateReported: '2026-09-15',
     incidentDate: '2026-09-14',
     incidentTime: '16:00',
@@ -357,7 +358,7 @@ const SEED_MOVEMENTS: DocketTransferMovement[] = [
     senderName: 'Sarah Ndlovu',
     senderRank: 'Constable',
     senderPersonnelNumber: 'POL-10824',
-    senderStation: 'SAPS Sandton Police Station (CSC Frontline)',
+    senderStation: 'SAPS Berea Police Station (CSC Frontline)',
     destination: 'Commercial Crime Section - Specialist Desk',
     intendedRecipientName: 'David Khumalo',
     intendedRecipientRole: 'Detective Inspector',
@@ -489,13 +490,44 @@ export const detectiveService = {
    * Enforces zero cross-detective leakage.
    */
   getAssignedCases(detectivePersonnelNumber: string): DetectiveCaseDocket[] {
-    const cases = this.getAllCases();
+    const cases = this.evaluateInitialResponseDeadlines();
     const cleanNumber = detectivePersonnelNumber.trim().toUpperCase();
-    return cases.filter(c => 
-      c.investigatingOfficerPersonnelNumber.toUpperCase() === cleanNumber ||
-      c.investigatingOfficerPersonnelNumber.includes(cleanNumber) ||
-      cleanNumber.includes(c.investigatingOfficerPersonnelNumber)
+    return cases.filter(c =>
+      (c.investigatingOfficerPersonnelNumber.toUpperCase() === cleanNumber ||
+        c.investigatingOfficerPersonnelNumber.includes(cleanNumber) ||
+        cleanNumber.includes(c.investigatingOfficerPersonnelNumber)) &&
+      (c.currentCustodianPersonnelNumber.toUpperCase() === cleanNumber ||
+        (c.custodyStatus === 'TRANSFERRED_AWAITING_RECEIPT' && !c.isCustodyAcknowledgedByDetective && c.investigatingOfficerPersonnelNumber.toUpperCase() === cleanNumber))
     );
+  },
+
+  // A detective must record a diary entry or status response within seven days.
+  // When this deadline passes, the case is flagged for the Station Commander.
+  evaluateInitialResponseDeadlines(): DetectiveCaseDocket[] {
+    const cases = safeStorageGet<DetectiveCaseDocket[]>(DETECTIVE_STORAGE_KEYS.CASES, SEED_CASES);
+    const diary = safeStorageGet<InvestigationDiaryRecord[]>(DETECTIVE_STORAGE_KEYS.DIARY, SEED_DIARY);
+    const audits = safeStorageGet<CaseAuditEntry[]>(DETECTIVE_STORAGE_KEYS.AUDIT, SEED_AUDIT);
+    const now = Date.now();
+    let changed = false;
+    cases.forEach((caseDocket) => {
+      if (!caseDocket.initialResponseDueAt || caseDocket.currentStatus === 'Case Finalized') return;
+      const assignedAt = new Date(`${caseDocket.assignedDate}T00:00:00`).getTime();
+      const hasResponse = diary.some((entry) => entry.caseNumber === caseDocket.caseNumber && new Date(entry.timestamp).getTime() >= assignedAt)
+        || audits.some((entry) => entry.caseNumber === caseDocket.caseNumber && entry.action === 'CASE_STATUS_UPDATED' && new Date(entry.timestamp).getTime() >= assignedAt);
+      if (now > new Date(caseDocket.initialResponseDueAt).getTime() && !hasResponse && !caseDocket.responseEscalatedAt) {
+        const timestamp = new Date().toISOString();
+        caseDocket.requiresSupervisoryReview = true;
+        caseDocket.responseEscalatedAt = timestamp;
+        caseDocket.scheduledReviewDate = timestamp.slice(0, 10);
+        audits.unshift({ id: `aud_${Date.now()}_sla`, caseNumber: caseDocket.caseNumber, action: 'DETECTIVE_RESPONSE_SLA_ESCALATED', userFullName: 'SFEN Deadline Monitor', userRank: 'System', userPersonnelNumber: 'SYSTEM', userRole: 'SYSTEM', description: 'No detective diary entry or status response was recorded within seven days. Case escalated to the Station Commander for review.', timestamp, securityHash: generateSecurityHash(caseDocket.caseNumber, 'DETECTIVE_RESPONSE_SLA_ESCALATED', timestamp) });
+        changed = true;
+      }
+    });
+    if (changed) {
+      safeStorageSet(DETECTIVE_STORAGE_KEYS.CASES, cases);
+      safeStorageSet(DETECTIVE_STORAGE_KEYS.AUDIT, audits);
+    }
+    return cases;
   },
 
   /**
@@ -598,6 +630,20 @@ export const detectiveService = {
       securityHash: generateSecurityHash(caseNumber, 'DOCKET_RECEIPT_ACKNOWLEDGED', nowIso)
     };
     safeStorageSet(DETECTIVE_STORAGE_KEYS.AUDIT, [auditRecord, ...audits]);
+
+    // Citizen-facing update for the browser-based detective workspace flow.
+    const linkedCase = getRegisteredCases().find((item) => item.caseNumber === caseNumber);
+    if (linkedCase) {
+      addNotification({
+        userId: linkedCase.userId,
+        type: 'case',
+        title: 'Detective Has Taken Over Your Case',
+        message: `${detective.rank} ${detective.fullName} has confirmed receipt of the docket for ${caseNumber}.`,
+        read: false,
+        linkedId: caseNumber,
+        linkedTab: 'my-cases'
+      });
+    }
 
     // Record automatic entry into Investigation Diary
     this.addInvestigationDiaryEntry({
@@ -836,6 +882,9 @@ export const detectiveService = {
     }
 
     const targetCase = cases[idx];
+    if (targetCase.currentCustodianPersonnelNumber.toUpperCase() !== detective.personnelNumber.toUpperCase() || targetCase.custodyStatus !== 'HELD_BY_INVESTIGATING_OFFICER') {
+      return { success: false, message: 'This docket is not currently in your custody and cannot be transferred.' };
+    }
     const prevCustodian = `${detective.rank} ${detective.fullName}`;
     const nowIso = new Date().toISOString();
 
@@ -866,7 +915,7 @@ export const detectiveService = {
       senderName: detective.fullName,
       senderRank: detective.rank,
       senderPersonnelNumber: detective.personnelNumber,
-      senderStation: detective.station || 'SAPS Sandton Police Station',
+      senderStation: detective.station || 'SAPS Berea Police Station',
       destination: 'Station Commander Executive Review Desk',
       intendedRecipientName: 'Elena Vance',
       intendedRecipientRole: 'Station Commander',
@@ -951,7 +1000,7 @@ export const detectiveService = {
       senderName: detective.fullName,
       senderRank: detective.rank,
       senderPersonnelNumber: detective.personnelNumber,
-      senderStation: detective.station || 'SAPS Sandton Police Station',
+      senderStation: detective.station || 'SAPS Berea Police Station',
       destination: params.destination,
       intendedRecipientName: params.intendedRecipientName?.trim() || undefined,
       intendedRecipientRole: params.intendedRecipientRole?.trim() || undefined,
@@ -1001,6 +1050,7 @@ export const detectiveService = {
     notes: string,
     detective: UserProfile
   ): boolean {
+    if (!notes.trim()) return false;
     const cases = safeStorageGet<DetectiveCaseDocket[]>(DETECTIVE_STORAGE_KEYS.CASES, SEED_CASES);
     const idx = cases.findIndex(c => c.caseNumber === caseNumber);
     if (idx === -1) return false;
@@ -1026,6 +1076,13 @@ export const detectiveService = {
       securityHash: generateSecurityHash(caseNumber, 'CASE_STATUS_UPDATED', nowIso)
     };
     safeStorageSet(DETECTIVE_STORAGE_KEYS.AUDIT, [auditRecord, ...audits]);
+
+    this.addInvestigationDiaryEntry({
+      caseNumber,
+      actionTaken: `Case status changed from ${prevStatus} to ${newStatus}.`,
+      resultOutcome: `Reason recorded by investigating officer: ${notes.trim()}`,
+      nextActionRequired: 'Continue investigation according to the updated case status.'
+    }, detective);
 
     return true;
   },

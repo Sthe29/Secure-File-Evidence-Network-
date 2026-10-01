@@ -65,7 +65,6 @@ export const DetectiveCaseWorkspaceModal: React.FC<DetectiveCaseWorkspaceModalPr
   const [showAddDiaryModal, setShowAddDiaryModal] = useState(false);
   const [diaryActionTaken, setDiaryActionTaken] = useState('');
   const [diaryResult, setDiaryResult] = useState('');
-  const [diaryDocRef, setDiaryDocRef] = useState('');
   const [diaryNextAction, setDiaryNextAction] = useState('');
 
   const [showAddDocModal, setShowAddDocModal] = useState(false);
@@ -88,6 +87,9 @@ export const DetectiveCaseWorkspaceModal: React.FC<DetectiveCaseWorkspaceModalPr
   const [custodyAckNotes, setCustodyAckNotes] = useState('');
 
   const [statusUpdateMessage, setStatusUpdateMessage] = useState<string | null>(null);
+  const [pendingStatus, setPendingStatus] = useState<DetectiveCaseDocket['currentStatus'] | null>(null);
+  const [statusChangeReason, setStatusChangeReason] = useState('');
+  const [statusChangeError, setStatusChangeError] = useState('');
 
   // Load initial tab data and record docket access in audit trail
   useEffect(() => {
@@ -161,13 +163,11 @@ export const DetectiveCaseWorkspaceModal: React.FC<DetectiveCaseWorkspaceModalPr
       caseNumber: currentCase.caseNumber,
       actionTaken: diaryActionTaken,
       resultOutcome: diaryResult,
-      documentReference: diaryDocRef.trim() || undefined,
       nextActionRequired: diaryNextAction
     }, detective);
 
     setDiaryActionTaken('');
     setDiaryResult('');
-    setDiaryDocRef('');
     setDiaryNextAction('');
     setShowAddDiaryModal(false);
     refreshCase();
@@ -223,8 +223,11 @@ export const DetectiveCaseWorkspaceModal: React.FC<DetectiveCaseWorkspaceModalPr
         reason: transferReason
       }, detective);
       if (res.success) {
-        setStatusUpdateMessage('Docket transferred to Station Commander. Awaiting Commander receipt.');
-        setTimeout(() => setStatusUpdateMessage(null), 4000);
+        setShowTransferModal(false);
+        setTransferReason('');
+        setTransferRecipient('');
+        onClose();
+        return;
       }
     } else {
       detectiveService.initiateDocketTransfer({
@@ -245,16 +248,32 @@ export const DetectiveCaseWorkspaceModal: React.FC<DetectiveCaseWorkspaceModalPr
 
   // Handle Status Update
   const handleUpdateStatus = (newStatus: DetectiveCaseDocket['currentStatus']) => {
+    if (newStatus === currentCase.currentStatus) return;
+    setPendingStatus(newStatus);
+    setStatusChangeReason('');
+    setStatusChangeError('');
+  };
+
+  const confirmStatusUpdate = () => {
+    if (!pendingStatus) return;
+    if (statusChangeReason.trim().length < 10) {
+      setStatusChangeError('Enter a clear reason of at least 10 characters for this status change.');
+      return;
+    }
     const success = detectiveService.updateCaseStatus(
       currentCase.caseNumber,
-      newStatus,
-      `Status updated by Lead Investigating Officer ${detective.rank} ${detective.fullName}`,
+      pendingStatus,
+      statusChangeReason.trim(),
       detective
     );
     if (success) {
       refreshCase();
-      setStatusUpdateMessage(`Case status updated to ${newStatus}`);
+      setPendingStatus(null);
+      setStatusChangeReason('');
+      setStatusUpdateMessage(`Case status updated to ${pendingStatus}`);
       setTimeout(() => setStatusUpdateMessage(null), 3000);
+    } else {
+      setStatusChangeError('The case status could not be updated. Please try again.');
     }
   };
 
@@ -287,9 +306,13 @@ export const DetectiveCaseWorkspaceModal: React.FC<DetectiveCaseWorkspaceModalPr
                 {currentCase.currentStatus}
               </span>
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                currentCase.priorityLevel === 'Critical' || currentCase.priorityLevel === 'Urgent'
-                  ? 'bg-red-500/15 text-red-300 border border-red-500/30'
-                  : 'bg-slate-800 text-slate-300'
+                currentCase.priorityLevel === 'Critical'
+                  ? 'bg-red-600 text-white border border-red-500'
+                  : currentCase.priorityLevel === 'Urgent'
+                    ? 'bg-red-500/20 text-red-300 border border-red-500/40'
+                    : currentCase.priorityLevel === 'High Priority'
+                      ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                      : 'bg-slate-800/70 text-slate-300 border border-slate-700'
               }`}>
                 {currentCase.priorityLevel}
               </span>
@@ -362,7 +385,7 @@ export const DetectiveCaseWorkspaceModal: React.FC<DetectiveCaseWorkspaceModalPr
             }`}
           >
             <FolderLock size={15} />
-            <span>Documents ({documents.length})</span>
+            <span>Documents</span>
           </button>
 
           <button
@@ -378,22 +401,6 @@ export const DetectiveCaseWorkspaceModal: React.FC<DetectiveCaseWorkspaceModalPr
             <span>Instructions ({instructions.length})</span>
             {instructions.some(i => i.status === 'OUTSTANDING') && (
               <span className="w-2 h-2 rounded-full bg-amber-400" />
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('movements')}
-            className={`py-3 px-3.5 text-xs font-bold border-b-2 flex items-center gap-2 cursor-pointer transition-all whitespace-nowrap ${
-              activeTab === 'movements'
-                ? 'border-amber-400 text-amber-300'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <ArrowRightLeft size={15} />
-            <span>Docket Movement ({movements.length})</span>
-            {movements.some(m => m.status === 'AWAITING_ACKNOWLEDGEMENT') && (
-              <span className="w-2 h-2 rounded-full bg-amber-400 " />
             )}
           </button>
 
@@ -509,7 +516,7 @@ export const DetectiveCaseWorkspaceModal: React.FC<DetectiveCaseWorkspaceModalPr
                         <CheckCircle2 size={16} />
                         <span>Acknowledge Docket Custody</span>
                       </button>
-                    ) : (
+                    ) : !currentCase.requiresSupervisoryReview && (
                       <button
                         type="button"
                         id="btn-transfer-to-commander"
@@ -791,7 +798,42 @@ export const DetectiveCaseWorkspaceModal: React.FC<DetectiveCaseWorkspaceModalPr
                 </button>
               </div>
 
-              {documents.length === 0 ? (
+              {(currentCase.stationEvidenceItems?.length || currentCase.evidenceIntakeNotes) ? (
+                <section className="space-y-3">
+                  <div className="flex items-center gap-2"><FolderLock size={16} className="text-amber-400" /><span className="text-xs font-bold uppercase tracking-wider text-slate-400">Evidence Received at Station</span></div>
+                  {currentCase.evidenceIntakeNotes && <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/25"><p className="text-[11px] font-bold text-amber-300 uppercase tracking-wide">Officer evidence and exhibit notes</p><p className="text-xs text-slate-200 leading-relaxed mt-2 whitespace-pre-wrap">{currentCase.evidenceIntakeNotes}</p></div>}
+                  {currentCase.stationEvidenceItems?.length ? <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{currentCase.stationEvidenceItems.map((item, index) => <div key={`${item.name}-${index}`} className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3"><div><p className="text-sm font-bold text-white truncate">{item.name}</p><p className="text-[11px] text-slate-400 mt-1">Station evidence • {item.type} • {Math.max(1, Math.round(item.size / 1024))} KB</p></div><button type="button" onClick={() => item.dataUrl ? window.open(item.dataUrl, '_blank', 'noopener,noreferrer') : alert('This older station evidence item only has file details saved. Request a new copy before relying on it as evidence.')} className="w-full px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold cursor-pointer">View station evidence</button></div>)}</div> : null}
+                </section>
+              ) : null}
+
+              {currentCase.attachments?.length ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <FileText size={16} className="text-blue-400" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Citizen Uploaded Evidence</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {currentCase.attachments.map((attachment) => (
+                      <div key={attachment.id} className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+                        <div>
+                          <p className="text-sm font-bold text-white truncate">{attachment.name}</p>
+                          <p className="text-[11px] text-slate-400 mt-1">{attachment.category} • {attachment.type} • {attachment.size}</p>
+                          <p className="text-[10px] text-slate-500 mt-1">Submitted {new Date(attachment.uploadedAt).toLocaleString()}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => attachment.dataUrl ? window.open(attachment.dataUrl, '_blank', 'noopener,noreferrer') : alert('This older attachment only has file details saved. Request a new copy before relying on it as evidence.')}
+                          className="w-full px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold cursor-pointer"
+                        >
+                          View evidence
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {documents.length === 0 && !currentCase.attachments?.length && !currentCase.stationEvidenceItems?.length && !currentCase.evidenceIntakeNotes ? (
                 <div className="p-10 text-center rounded-2xl bg-slate-950/60 border border-slate-800 space-y-2">
                   <FolderLock size={32} className="text-slate-600 mx-auto" />
                   <p className="text-sm font-bold text-white">No documents uploaded to this docket</p>
@@ -843,6 +885,7 @@ export const DetectiveCaseWorkspaceModal: React.FC<DetectiveCaseWorkspaceModalPr
                           </span>
                         </div>
                       </div>
+                      {doc.dataUrl && <button type="button" onClick={() => window.open(doc.dataUrl, '_blank', 'noopener,noreferrer')} className="w-full px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold cursor-pointer">View evidence</button>}
                     </div>
                   ))}
                 </div>
@@ -1147,6 +1190,33 @@ export const DetectiveCaseWorkspaceModal: React.FC<DetectiveCaseWorkspaceModalPr
 
       </div>
 
+      {/* SUB-MODAL: STATUS CHANGE REASON */}
+      {pendingStatus && (
+        <div className="fixed inset-0 z-60 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-blue-300">Case status audit</p>
+                <h4 className="text-base font-bold text-white mt-1">Record Reason for Status Change</h4>
+              </div>
+              <button type="button" onClick={() => setPendingStatus(null)} className="text-slate-400 hover:text-white cursor-pointer"><X size={18} /></button>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Change <strong className="text-white">{currentCase.currentStatus}</strong> to <strong className="text-blue-300">{pendingStatus}</strong>. Your reason will be saved in the investigation diary and immutable case audit register.
+            </p>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-300">Reason for changing the case status</label>
+              <textarea autoFocus required minLength={10} rows={4} value={statusChangeReason} onChange={(e) => setStatusChangeReason(e.target.value)} placeholder="Explain what investigation development, evidence, court action, or outcome requires this change." className="w-full p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 resize-none" />
+            </div>
+            {statusChangeError && <p className="text-xs text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg p-3">{statusChangeError}</p>}
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+              <button type="button" onClick={() => setPendingStatus(null)} className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 cursor-pointer">Cancel</button>
+              <button type="button" onClick={confirmStatusUpdate} className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold cursor-pointer">Confirm Status Change</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* SUB-MODAL 1: ACKNOWLEDGE DOCKET CUSTODY */}
       {showCustodyAckModal && (
         <div className="fixed inset-0 z-60 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
@@ -1248,33 +1318,18 @@ export const DetectiveCaseWorkspaceModal: React.FC<DetectiveCaseWorkspaceModalPr
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-300">
-                    Relevant Doc / Statement Ref:
-                  </label>
-                  <input
-                    type="text"
-                    value={diaryDocRef}
-                    onChange={(e) => setDiaryDocRef(e.target.value)}
-                    placeholder="e.g., DOC-S205-001"
-                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-300">
-                    Next Action Required <span className="text-red-400">*</span>:
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={diaryNextAction}
-                    onChange={(e) => setDiaryNextAction(e.target.value)}
-                    placeholder="e.g., Issue subpoena returns notice"
-                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-400"
-                  />
-                </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-300">
+                  Next Action Required <span className="text-red-400">*</span>:
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={diaryNextAction}
+                  onChange={(e) => setDiaryNextAction(e.target.value)}
+                  placeholder="e.g., Issue subpoena returns notice"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-400"
+                />
               </div>
 
               <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-900 text-[11px] text-slate-400 flex items-center justify-between">

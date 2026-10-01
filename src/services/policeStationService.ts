@@ -4,20 +4,20 @@ export type { PoliceStation };
 
 export const POLICE_STATIONS: PoliceStation[] = [
   {
-    id: 'sta_sandton',
-    name: 'SAPS Sandton (Central Precinct)',
-    precinctCode: 'GP-JHB-04',
-    address: 'Summit Road & Rivonia Road',
-    suburb: 'Morningside / Sandton',
-    city: 'Johannesburg',
-    province: 'Gauteng',
-    postalCode: '2196',
-    phone: '011 722 4200',
-    emergencyPhone: '082 300 8377 (Sector 1 Patrol)',
+    id: 'sta_berea',
+    name: 'SAPS Berea Police Station',
+    precinctCode: 'KZN-BER-01',
+    address: '182 Botanic Gardens Road',
+    suburb: 'Berea',
+    city: 'Durban',
+    province: 'KwaZulu-Natal',
+    postalCode: '4001',
+    phone: '031 277 1060',
+    emergencyPhone: '10111',
     stationCommander: 'Brigadier N. Sithole',
     operatingHours: '24 Hours / 7 Days a Week (CSC)',
-    latitude: -26.0827,
-    longitude: 28.0583,
+    latitude: -29.84813,
+    longitude: 31.00409,
     services: [
       'Community Service Centre (CSC) 24/7',
       'Detective Branch & Docket Registration',
@@ -238,27 +238,6 @@ export const POLICE_STATIONS: PoliceStation[] = [
       'Community Service Centre 24/7',
       'Atlantic Seaboard Rapid Patrol',
       'Victim Support Centre'
-    ]
-  },
-  {
-    id: 'sta_dbn_central',
-    name: 'SAPS Durban Central',
-    precinctCode: 'KZN-ETH-01',
-    address: 'Stalwart Simelane Street',
-    suburb: 'Durban Central',
-    city: 'Durban',
-    province: 'KwaZulu-Natal',
-    postalCode: '4001',
-    phone: '031 325 4000',
-    emergencyPhone: '10111 / 082 411 6571',
-    stationCommander: 'Major General S. Mkhize',
-    operatingHours: '24 Hours / 7 Days a Week (CSC)',
-    latitude: -29.8587,
-    longitude: 31.0218,
-    services: [
-      'Community Service Centre 24/7',
-      'Port & Coastal Security Liaison',
-      'Specialised Commercial Crime'
     ]
   }
 ];

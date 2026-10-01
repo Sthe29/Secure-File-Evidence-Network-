@@ -29,6 +29,12 @@ export const CommanderDetectivesView: React.FC<CommanderDetectivesViewProps> = (
   onFilterCasesByDetective
 }) => {
   const [selectedDetectiveNumber, setSelectedDetectiveNumber] = useState<string | null>(null);
+  const sarahCases = cases.filter((caseDocket) =>
+    caseDocket.registeredByPersonnelNumber === 'POL-10824' ||
+    caseDocket.currentCustodianPersonnelNumber === 'POL-10824'
+  );
+  const sarahAwaitingReceipt = sarahCases.filter((caseDocket) => !caseDocket.isCustodyAcknowledgedByDetective).length;
+  const sarahActiveCases = sarahCases.filter((caseDocket) => caseDocket.currentStatus !== 'Case Finalized').length;
 
   const selectedWorkload = detectivesWorkload.find(
     w => w.detective.personnelNumber === selectedDetectiveNumber
@@ -45,7 +51,7 @@ export const CommanderDetectivesView: React.FC<CommanderDetectivesViewProps> = (
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-extrabold text-white tracking-tight">
-            Station Detectives & Workload Supervision
+            Station Officer & Detective
           </h2>
           <p className="text-xs text-slate-400 mt-1">
             Supervise investigating officer caseloads, pending directives, and docket custody under station command
@@ -54,13 +60,23 @@ export const CommanderDetectivesView: React.FC<CommanderDetectivesViewProps> = (
 
         <div className="flex items-center gap-2">
           <span className="text-xs font-mono text-slate-400">
-            <strong className="text-emerald-400">{detectivesWorkload.length}</strong> Authorized Investigating Officers
+            <strong className="text-emerald-400">{detectivesWorkload.length + 1}</strong> Active Station Personnel
           </span>
         </div>
       </div>
 
       {/* Detectives Grid / Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="sfen-record-grid grid grid-cols-1 md:grid-cols-2 gap-0">
+        <div className="sfen-record-row p-5 rounded-2xl border bg-slate-900/80 border-slate-800 flex flex-col justify-between gap-4">
+          <div className="space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 text-blue-400 font-bold flex items-center justify-center text-sm font-mono">SN</div><div><h3 className="text-sm font-bold text-white flex items-center gap-2"><span>Constable Sarah Ndlovu</span><span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-800 text-amber-300">POL-10824</span></h3><p className="text-xs text-slate-400">CSC / Police Officer</p></div></div>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">ACTIVE</span>
+            </div>
+            <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800/80 space-y-1.5 text-xs text-slate-400"><div className="text-slate-300"><strong className="text-slate-400">Role:</strong> Frontline incident intake, report review, and CAS registration.</div><div className="flex flex-wrap items-center gap-4 text-[11px] font-mono pt-1"><span className="flex items-center gap-1"><Phone size={11} className="text-slate-500" /><span>031 277 1060</span></span><span className="flex items-center gap-1"><Mail size={11} className="text-slate-500" /><span>s.ndlovu@police.sfen.gov</span></span></div></div>
+            <div className="grid grid-cols-3 gap-2 text-center text-xs"><div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800/80"><span className="text-[10px] text-slate-400 block mb-0.5">Registered Cases</span><strong className="text-sm font-bold font-mono text-white">{sarahCases.length}</strong></div><div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800/80"><span className="text-[10px] text-slate-400 block mb-0.5">Active Intake</span><strong className="text-sm font-bold font-mono text-white">{sarahActiveCases}</strong></div><div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800/80"><span className="text-[10px] text-slate-400 block mb-0.5">Awaiting Receipt</span><strong className={`text-sm font-bold font-mono ${sarahAwaitingReceipt ? 'text-amber-300' : 'text-slate-400'}`}>{sarahAwaitingReceipt}</strong></div></div>
+          </div>
+        </div>
         {detectivesWorkload.map((item) => {
           const det = item.detective;
           const isSelected = selectedDetectiveNumber === det.personnelNumber;
@@ -68,7 +84,7 @@ export const CommanderDetectivesView: React.FC<CommanderDetectivesViewProps> = (
           return (
             <div
               key={det.personnelNumber}
-              className={`p-5 rounded-2xl border transition-all flex flex-col justify-between gap-4 ${
+              className={`sfen-record-row p-5 rounded-2xl border transition-all flex flex-col justify-between gap-4 ${
                 isSelected
                   ? 'bg-slate-900 border-emerald-500/50 shadow-md'
                   : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'
@@ -140,12 +156,6 @@ export const CommanderDetectivesView: React.FC<CommanderDetectivesViewProps> = (
                   </div>
                 </div>
 
-                {item.unacknowledgedDocketsCount > 0 && (
-                  <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-300 flex items-center gap-2">
-                    <AlertTriangle size={13} className="shrink-0" />
-                    <span>{item.unacknowledgedDocketsCount} docket transfer(s) awaiting detective receipt signature.</span>
-                  </div>
-                )}
               </div>
 
               {/* Action Buttons */}

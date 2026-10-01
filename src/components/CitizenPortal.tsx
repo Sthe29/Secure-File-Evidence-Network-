@@ -12,8 +12,7 @@ import {
   Loader2, 
   UserPlus, 
   LogIn, 
-  Info,
-  Key
+  Info
 } from 'lucide-react';
 import { CitizenLoginCredentials, CitizenSignUpData, CitizenProfile } from '../types/auth';
 import { authenticateCitizen, registerCitizen, evaluatePasswordStrength } from '../services/authService';
@@ -44,14 +43,14 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
   }, [initialAuthMode]);
   
   // Login State
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPhone, setLoginPhone] = useState('');
+  const [loginNationalId, setLoginNationalId] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
   // Sign Up State
   const [fullName, setFullName] = useState('');
+  const [signUpNationalId, setSignUpNationalId] = useState('');
   const [signUpEmail, setSignUpEmail] = useState('');
   const [signUpPhone, setSignUpPhone] = useState('');
   const [signUpPassword, setSignUpPassword] = useState('');
@@ -67,30 +66,18 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
 
   const passwordStrength = evaluatePasswordStrength(signUpPassword);
 
-  // Auto-populate saved citizen email and phone
+  // Auto-populate the last ID number only when the user opted in to remembering it.
   useEffect(() => {
     try {
-      const savedEmail = localStorage.getItem('sfen_citizen_last_email');
-      const savedPhone = localStorage.getItem('sfen_citizen_last_phone');
-      if (savedEmail) {
-        setLoginEmail(savedEmail);
+      const savedNationalId = localStorage.getItem('sfen_citizen_last_id');
+      if (savedNationalId) {
+        setLoginNationalId(savedNationalId);
         setRememberMe(true);
-      }
-      if (savedPhone) {
-        setLoginPhone(savedPhone);
       }
     } catch {
       // Ignore
     }
   }, []);
-
-  const handleQuickFillDemo = () => {
-    setAuthMode('login');
-    setLoginEmail('thandi.molefe@example.com');
-    setLoginPhone('0825550192');
-    setLoginPassword('DocketSecure2026!');
-    setErrorMessage(null);
-  };
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,8 +85,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
     setSuccessNotice(null);
 
     const credentials: CitizenLoginCredentials = {
-      email: loginEmail,
-      phoneNumber: loginPhone,
+      nationalId: loginNationalId,
       password: loginPassword,
       rememberMe
     };
@@ -109,6 +95,8 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
     try {
       const result = await authenticateCitizen(credentials);
       if (result.success && result.citizen) {
+        if (rememberMe) localStorage.setItem('sfen_citizen_last_id', loginNationalId);
+        else localStorage.removeItem('sfen_citizen_last_id');
         onSuccess(result.citizen);
       } else {
         setErrorMessage(result.message);
@@ -125,8 +113,14 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
     setErrorMessage(null);
     setSuccessNotice(null);
 
+    if (!/^\d{10}$/.test(signUpPhone)) {
+      setErrorMessage('Enter a mobile number with exactly 10 digits.');
+      return;
+    }
+
     const data: CitizenSignUpData = {
       fullName,
+      nationalId: signUpNationalId,
       email: signUpEmail,
       phoneNumber: signUpPhone,
       password: signUpPassword,
@@ -248,37 +242,26 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
       {/* LOGIN VIEW */}
       {authMode === 'login' ? (
         <form onSubmit={handleLoginSubmit} className="space-y-4" noValidate>
-          {/* Quick Demo Login Option */}
-          <div className={`p-2.5 rounded-md border flex items-center justify-between text-xs ${
-            isDark ? 'bg-black border-blue-900/60 text-slate-300' : 'bg-blue-50/50 border-blue-200 text-blue-900'
-          }`}>
-            <span className="text-[11px]">Testing as citizen?</span>
-            <button
-              type="button"
-              onClick={handleQuickFillDemo}
-              className="text-[11px] font-bold text-blue-600 hover:underline cursor-pointer"
-            >
-              Fill Demo Citizen (Thandi Molefe)
-            </button>
-          </div>
-
-          {/* Email or Phone input */}
+          {/* South African ID number input */}
           <div className="space-y-1.5">
-            <label htmlFor="citizen-login-email" className={`text-xs font-semibold block ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
-              Email Address or Mobile Phone Number <span className="text-blue-600">*</span>
+            <label htmlFor="citizen-login-id" className={`text-xs font-semibold block ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+              South African ID Number <span className="text-blue-600">*</span>
             </label>
             <div className="relative">
               <div className={`absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                 <Mail size={16} />
               </div>
               <input
-                id="citizen-login-email"
+                id="citizen-login-id"
                 type="text"
                 required
                 autoComplete="username"
-                value={loginEmail}
-                onChange={(e) => setLoginEmail(e.target.value)}
-                placeholder="e.g. name@example.com or 082 123 4567"
+                inputMode="numeric"
+                maxLength={13}
+                pattern="[0-9]{13}"
+                value={loginNationalId}
+                onChange={(e) => setLoginNationalId(e.target.value.replace(/\D/g, '').slice(0, 13))}
+                placeholder="Enter your 13-digit ID number"
                 className={`w-full pl-10 pr-3.5 py-2.5 rounded-md text-sm border font-mono focus:outline-none focus:ring-2 focus:ring-blue-600 ${
                   isDark ? 'bg-black border-slate-700 text-white placeholder-slate-500' : 'bg-white border-slate-300 text-black placeholder-slate-400'
                 }`}
@@ -286,28 +269,6 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
             </div>
           </div>
 
-          {/* Optional Phone Number input */}
-          <div className="space-y-1.5">
-            <label htmlFor="citizen-login-phone" className={`text-xs font-semibold block ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
-              Phone Number <span className="text-slate-400 font-normal">(Optional if email provided above)</span>
-            </label>
-            <div className="relative">
-              <div className={`absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                <Phone size={16} />
-              </div>
-              <input
-                id="citizen-login-phone"
-                type="tel"
-                autoComplete="tel"
-                value={loginPhone}
-                onChange={(e) => setLoginPhone(e.target.value)}
-                placeholder="e.g. 082 555 0192"
-                className={`w-full pl-10 pr-3.5 py-2.5 rounded-md text-sm border font-mono focus:outline-none focus:ring-2 focus:ring-blue-600 ${
-                  isDark ? 'bg-black border-slate-700 text-white placeholder-slate-500' : 'bg-white border-slate-300 text-black placeholder-slate-400'
-                }`}
-              />
-            </div>
-          </div>
 
           {/* Password input */}
           <div className="space-y-1.5">
@@ -364,7 +325,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
             <button
               id="citizen-link-forgot-password"
               type="button"
-              onClick={() => onForgotPassword(loginEmail || loginPhone)}
+              onClick={() => onForgotPassword('')}
               className="text-xs font-semibold text-blue-600 hover:underline transition-colors cursor-pointer"
             >
               Forgot Password?
@@ -376,7 +337,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
             <button
               id="btn-citizen-sign-in"
               type="submit"
-              disabled={isLoading || !loginEmail || !loginPhone || !loginPassword}
+              disabled={isLoading || loginNationalId.length !== 13 || !loginPassword}
               className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm rounded-md transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm"
             >
               {isLoading ? (
@@ -393,18 +354,6 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
             </button>
           </div>
 
-          {/* Quick Demo Citizen Helper */}
-          <div className={`pt-4 border-t text-center ${isDark ? 'border-white/10' : 'border-black/10'}`}>
-            <button
-              type="button"
-              id="btn-quick-fill-citizen-sample"
-              onClick={handleQuickFillDemo}
-              className="text-[11px] text-blue-600 hover:underline flex items-center justify-center gap-1.5 mx-auto font-medium cursor-pointer"
-            >
-              <Key size={12} />
-              <span>Click to auto-fill sample citizen test credentials</span>
-            </button>
-          </div>
         </form>
       ) : (
         /* SIGN UP VIEW */
@@ -430,6 +379,34 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
                 }`}
               />
             </div>
+          </div>
+
+          {/* South African ID Number */}
+          <div className="space-y-1.5">
+            <label htmlFor="citizen-signup-id" className={`text-xs font-semibold block ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+              South African ID Number <span className="text-blue-600">*</span>
+            </label>
+            <div className="relative">
+              <div className={`absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                <User size={16} />
+              </div>
+              <input
+                id="citizen-signup-id"
+                type="text"
+                required
+                inputMode="numeric"
+                autoComplete="off"
+                maxLength={13}
+                pattern="[0-9]{13}"
+                value={signUpNationalId}
+                onChange={(e) => setSignUpNationalId(e.target.value.replace(/\D/g, '').slice(0, 13))}
+                placeholder="13 digits, e.g. 9001015009087"
+                className={`w-full pl-10 pr-3.5 py-2.5 rounded-md text-sm border font-mono focus:outline-none focus:ring-2 focus:ring-blue-600 ${
+                  isDark ? 'bg-black border-slate-700 text-white placeholder-slate-500' : 'bg-white border-slate-300 text-black placeholder-slate-400'
+                }`}
+              />
+            </div>
+            <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Your ID number must contain exactly 13 digits and is used to sign in.</p>
           </div>
 
           {/* Email Address */}
@@ -468,9 +445,12 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
                 id="citizen-signup-phone"
                 type="tel"
                 required
+                inputMode="numeric"
+                maxLength={10}
+                pattern="[0-9]{10}"
                 value={signUpPhone}
-                onChange={(e) => setSignUpPhone(e.target.value)}
-                placeholder="e.g. 082 123 4567"
+                onChange={(e) => setSignUpPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                placeholder="e.g. 0821234567"
                 className={`w-full pl-10 pr-3.5 py-2.5 rounded-md text-sm border font-mono focus:outline-none focus:ring-2 focus:ring-blue-600 ${
                   isDark ? 'bg-black border-slate-700 text-white placeholder-slate-500' : 'bg-white border-slate-300 text-black placeholder-slate-400'
                 }`}
@@ -634,8 +614,9 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
               disabled={
                 isLoading || 
                 !fullName.trim() || 
+                signUpNationalId.length !== 13 ||
                 !signUpEmail.trim() || 
-                !signUpPhone.trim() || 
+                signUpPhone.length !== 10 || 
                 !acceptedTerms || 
                 signUpPassword !== confirmPassword || 
                 passwordStrength.score < 2
@@ -664,7 +645,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
                 onClick={() => setAuthMode('login')}
                 className="text-blue-600 font-semibold hover:underline cursor-pointer"
               >
-                Sign in with your email and phone
+                Sign in with your ID number
               </button>
             </p>
           </div>

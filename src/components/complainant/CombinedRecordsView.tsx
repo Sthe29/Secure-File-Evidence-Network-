@@ -8,7 +8,7 @@ import {
   ComplaintCategory,
   ComplainantTab 
 } from '../../types/complainant';
-import { submitServiceComplaint, simulateRegisterCaseFromReport } from '../../services/complainantService';
+import { submitServiceComplaint } from '../../services/complainantService';
 import { 
   Briefcase, 
   FileText, 
@@ -23,7 +23,6 @@ import {
   X, 
   Paperclip, 
   ArrowRight,
-  FilePlus2,
   UserCheck,
   Scale,
   Plus,
@@ -55,7 +54,7 @@ const POLICE_STATIONS = [
   'Sandton Police Station',
   'Johannesburg Central Station',
   'Cape Town Central SAPS',
-  'Durban Central SAPS',
+  'SAPS Berea Police Station',
   'Pretoria Central SAPS',
   'Other Police Station'
 ];
@@ -78,7 +77,6 @@ export const CombinedRecordsView: React.FC<CombinedRecordsViewProps> = ({
   // Reports State
   const [reportSearchQuery, setReportSearchQuery] = useState('');
   const [reportStatusFilter, setReportStatusFilter] = useState<string>('all');
-  const [selectedReport, setSelectedReport] = useState<IncidentReport | null>(null);
   const [stationModalReport, setStationModalReport] = useState<IncidentReport | null>(null);
 
   // Complaints State
@@ -137,6 +135,9 @@ export const CombinedRecordsView: React.FC<CombinedRecordsViewProps> = ({
     try {
       const result = submitServiceComplaint({
         userId: citizen.id,
+        complainantName: citizen.fullName,
+        complainantPhone: citizen.phoneNumber,
+        complainantEmail: citizen.email,
         category: complaintCategory,
         policeStation: complaintStation,
         linkedReference: complaintLinkedRef.trim() || undefined,
@@ -193,7 +194,7 @@ export const CombinedRecordsView: React.FC<CombinedRecordsViewProps> = ({
   };
 
   return (
-    <div id="combined-records-view" className="space-y-6 animate-fade-in">
+    <div id="combined-records-view" className="sfen-glass-records space-y-6 animate-fade-in">
       
       {/* Toast Notification */}
       {complaintToast && (
@@ -221,17 +222,6 @@ export const CombinedRecordsView: React.FC<CombinedRecordsViewProps> = ({
 
         {/* Action Button depending on subtab */}
         <div className="flex items-center gap-2.5 self-start md:self-center">
-          {activeSubTab === 'reports' && (
-            <button
-              type="button"
-              onClick={() => onNavigate('report-incident')}
-              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
-            >
-              <FilePlus2 size={15} />
-              <span>Report Incident</span>
-            </button>
-          )}
-
           {activeSubTab === 'complaints' && (
             <button
               type="button"
@@ -474,7 +464,7 @@ export const CombinedRecordsView: React.FC<CombinedRecordsViewProps> = ({
                     )}
                   </div>
 
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-800/80">
+                  <div className="flex items-center pt-2 border-t border-slate-800/80">
                     <button
                       type="button"
                       onClick={() => setStationModalReport(r)}
@@ -482,15 +472,6 @@ export const CombinedRecordsView: React.FC<CombinedRecordsViewProps> = ({
                     >
                       <Building2 size={13} />
                       <span>Station Details</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setSelectedReport(r)}
-                      className="px-3 py-1.5 rounded-lg bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-300 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-                    >
-                      <span>View Report Record</span>
-                      <ChevronRight size={13} />
                     </button>
                   </div>
                 </div>
@@ -638,77 +619,6 @@ export const CombinedRecordsView: React.FC<CombinedRecordsViewProps> = ({
               <button
                 type="button"
                 onClick={() => setDetailCase(null)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-xl"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Report Record Detail Modal */}
-      {selectedReport && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-2xl animate-fade-in my-8">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div>
-                <span className="font-mono font-bold text-emerald-400 text-base">{selectedReport.referenceNumber}</span>
-                <p className="text-xs text-slate-400">{selectedReport.incidentType} • {selectedReport.policeStation}</p>
-              </div>
-              <button
-                onClick={() => setSelectedReport(null)}
-                className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs text-slate-300">
-              <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Statement of Incident</span>
-                <p className="text-slate-200 leading-relaxed">{selectedReport.description}</p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 text-[11px]">
-                <div>
-                  <span className="text-slate-500 block">Incident Date & Time:</span>
-                  <span className="text-slate-200 font-mono">{selectedReport.incidentDate} at {selectedReport.incidentTime}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block">Location:</span>
-                  <span className="text-slate-200">{selectedReport.location.address}, {selectedReport.location.suburb}</span>
-                </div>
-              </div>
-
-              {/* Officer simulation trigger if awaiting review */}
-              {selectedReport.status !== 'Registered to Case' && (
-                <div className="p-3 rounded-xl bg-blue-950/40 border border-blue-500/30 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold text-blue-300">Police CSC Station Review Simulation</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        simulateRegisterCaseFromReport(selectedReport.id);
-                        onRefreshData();
-                        setSelectedReport(null);
-                      }}
-                      className="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-[10px] font-bold transition-colors cursor-pointer"
-                    >
-                      Simulate Official CAS Generation
-                    </button>
-                  </div>
-                  <p className="text-[10px] text-slate-400 leading-tight">
-                    Simulates a police Community Service Centre officer accepting this online statement and linking the official CAS docket to your account.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-end pt-3 border-t border-slate-800">
-              <button
-                type="button"
-                onClick={() => setSelectedReport(null)}
                 className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-xl"
               >
                 Close

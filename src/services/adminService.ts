@@ -16,20 +16,20 @@ const ACTIVITY_STORAGE_KEY = 'sfen_admin_activity_v1';
 
 // Initial Single Predefined Police Station for SFEN
 const DEFAULT_PREDEFINED_STATION: ConfiguredPoliceStation = {
-  id: 'sta_sandton',
-  name: 'SAPS Sandton Police Station',
+  id: 'sta_berea',
+  name: 'SAPS Berea Police Station',
   precinctCode: '',
-  address: 'Summit Road & Rivonia Road',
-  suburb: 'Morningside / Sandton',
-  city: 'Johannesburg',
-  province: 'Gauteng',
-  postalCode: '2196',
-  phone: '011 722 4200',
-  emergencyPhone: '082 300 8377 (Sector 1 Patrol)',
+  address: '182 Botanic Gardens Road',
+  suburb: 'Berea',
+  city: 'Durban',
+  province: 'KwaZulu-Natal',
+  postalCode: '4001',
+  phone: '031 277 1060',
+  emergencyPhone: '10111',
   stationCommander: 'Brigadier N. Sithole',
   operatingHours: '24 Hours / 7 Days a Week (CSC)',
-  latitude: -26.0827,
-  longitude: 28.0583,
+  latitude: -29.84813,
+  longitude: 31.00409,
   services: []
 };
 
@@ -374,6 +374,47 @@ class AdminService {
     } catch {
       return [...DEFAULT_SEED_USERS];
     }
+  }
+
+  /** Retrieves the shared account directory created through the SFEN API. */
+  async getUsersFromApi(token?: string): Promise<AdminUserRecord[]> {
+    if (!token) throw new Error('Administrator session is required.');
+    const response = await fetch('/api/admin/users', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const payload = await response.json() as Array<{
+      id: string;
+      fullName: string;
+      email: string;
+      phoneNumber?: string | null;
+      personnelNumber?: string | null;
+      rank?: string | null;
+      station?: string | null;
+      division?: string | null;
+      role: UserRole;
+      accountStatus: AccountStatus;
+      createdAt: string;
+      updatedAt: string;
+    }> | { message?: string };
+    if (!response.ok || !Array.isArray(payload)) {
+      throw new Error(!Array.isArray(payload) ? payload.message || 'Could not load users.' : 'Could not load users.');
+    }
+
+    return payload.map((user) => ({
+      id: user.id,
+      fullName: user.fullName,
+      identifier: user.personnelNumber || user.email,
+      email: user.email,
+      phoneNumber: user.phoneNumber || undefined,
+      accountType: user.role === 'COMPLAINANT' ? 'COMPLAINANT' : 'PERSONNEL',
+      role: user.role,
+      rank: user.rank || undefined,
+      station: user.station || DEFAULT_PREDEFINED_STATION.name,
+      division: user.division || undefined,
+      status: user.accountStatus,
+      lastLogin: 'Recorded by secure login',
+      createdAt: new Date(user.createdAt).toISOString().slice(0, 10)
+    }));
   }
 
   saveUsers(users: AdminUserRecord[]): void {

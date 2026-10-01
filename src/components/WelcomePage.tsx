@@ -6,8 +6,7 @@ import {
   ShieldCheck, 
   LogIn, 
   Sun, 
-  Moon,
-  ArrowRight
+  Moon
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import policeStationHero from '../assets/images/police_station_hero_1790253890766.jpg';
@@ -16,44 +15,32 @@ interface WelcomePageProps {
   onSignInCitizen: () => void;
   onSignUpCitizen: () => void;
   onSignInOfficial: (roleIntent?: 'officer' | 'detective' | 'commander' | 'admin') => void;
-  onActionRequiresLogin: (target: 'citizen' | 'officer' | 'detective' | 'commander') => void;
 }
 
 export const WelcomePage: React.FC<WelcomePageProps> = ({
   onSignInCitizen,
   onSignUpCitizen,
-  onSignInOfficial,
-  onActionRequiresLogin
+  onSignInOfficial
 }) => {
   const { theme, toggleTheme, isDark } = useTheme();
 
   return (
-    <div className={`relative min-h-screen w-full flex flex-col justify-between selection:bg-blue-600 selection:text-white font-sans ${
-      isDark ? 'bg-black text-white' : 'bg-slate-900 text-white'
+    <div className={`sfen-shell relative isolate min-h-screen w-full flex flex-col justify-between selection:bg-blue-600 selection:text-white font-sans ${
+      isDark ? 'bg-black text-white' : 'bg-white text-black'
     }`}>
-      
-      {/* Background Image - static, crisp, no pulsing animation or gradients */}
-      <div className="absolute inset-0 z-0">
+      <div className="absolute inset-0 -z-10 overflow-hidden">
         <img
           src={policeStationHero}
-          alt="South African Police Service station at dusk"
-          className="w-full h-full object-cover object-center"
-          onError={(e) => {
-            const target = e.currentTarget;
-            if (!target.src.endsWith('/assets/police_station_hero.jpg')) {
-              target.src = '/assets/police_station_hero.jpg';
-            }
-          }}
+          alt="South African Police Service station"
+          className="h-full w-full object-cover"
         />
-        {/* Solid dark overlay blending with background picture */}
-        <div className="absolute inset-0 bg-black/75 backdrop-blur-[1px]" />
+        <div className={`absolute inset-0 ${isDark ? 'bg-black/80' : 'bg-white/85'}`} />
       </div>
 
-      {/* Top Bar - Official Portal & Dark Mode Button on Top Right (Citizen Sign In removed) */}
-      <header className="relative z-10 w-full pt-5 px-6 sm:px-10 flex items-center justify-between border-b border-white/10 pb-4">
+      <header className={`relative z-10 w-full py-4 px-6 sm:px-10 flex items-center justify-between border-b ${isDark ? 'border-white/15' : 'border-black/15'}`}>
         <div className="flex items-center gap-2">
-          <span className="text-xl font-bold tracking-tight text-white font-mono">SFEN</span>
-          <span className="text-blue-500 font-semibold text-xs tracking-wider uppercase">POLICE CASE SYSTEM</span>
+          <span className="text-xl font-bold tracking-tight font-mono">SFEN</span>
+          <span className="text-blue-600 font-semibold text-xs tracking-wider uppercase">POLICE CASE SYSTEM</span>
         </div>
 
         {/* Right side controls: Official Portal and Dark Mode button */}
@@ -62,7 +49,7 @@ export const WelcomePage: React.FC<WelcomePageProps> = ({
             type="button"
             id="btn-top-official-portal"
             onClick={() => onSignInOfficial()}
-            className="px-3.5 py-1.5 rounded-md text-xs font-semibold bg-black/60 hover:bg-black text-white border border-white/20 transition-colors cursor-pointer flex items-center gap-1.5"
+            className={`px-3.5 py-1.5 text-xs font-semibold border cursor-pointer flex items-center gap-1.5 ${isDark ? 'border-white/20 text-white hover:bg-white hover:text-black' : 'border-black/20 text-black hover:bg-black hover:text-white'}`}
           >
             <ShieldCheck size={14} className="text-blue-500" />
             <span>Official Portal</span>
@@ -73,7 +60,7 @@ export const WelcomePage: React.FC<WelcomePageProps> = ({
             id="btn-top-darkmode-toggle"
             onClick={toggleTheme}
             aria-label="Toggle dark/light theme"
-            className="p-2 rounded-md bg-black/40 hover:bg-black/70 text-white border border-white/20 transition-colors flex items-center gap-1.5 text-xs cursor-pointer"
+            className={`p-2 border flex items-center gap-1.5 text-xs cursor-pointer ${isDark ? 'border-white/20 text-white hover:bg-white hover:text-black' : 'border-black/20 text-black hover:bg-black hover:text-white'}`}
           >
             {isDark ? <Sun size={14} className="text-blue-400" /> : <Moon size={14} className="text-blue-400" />}
             <span className="hidden sm:inline font-mono">{isDark ? 'Light Mode' : 'Dark Mode'}</span>
@@ -81,136 +68,72 @@ export const WelcomePage: React.FC<WelcomePageProps> = ({
         </div>
       </header>
 
-      {/* Center Main Stage */}
       <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-8 max-w-5xl mx-auto w-full text-center">
-        
-        {/* SFEN Main Title */}
-        <div className="space-y-1 mb-2">
-          <h1 className="text-5xl sm:text-7xl font-black tracking-tight text-white font-['Space_Grotesk']">
-            SFEN
-          </h1>
-          <div className="w-16 h-1 bg-blue-600 mx-auto" />
+        <div className="space-y-2 mb-5">
+          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight font-mono">Secure File and Evidence Network</h1>
+          <p className={`text-sm ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>Police case management and electronic records.</p>
         </div>
 
-        {/* Subtitle */}
-        <p className="text-base sm:text-xl font-medium text-slate-200 tracking-wide mt-2">
-          Police Case Management and Electronic Records System
-        </p>
+        <div className={`w-full max-w-4xl border-t ${isDark ? 'border-white/15' : 'border-black/15'}`} />
 
-        {/* Core Pillars */}
-        <div className="flex items-center justify-center gap-3 sm:gap-6 text-[10px] sm:text-xs font-semibold tracking-widest uppercase text-blue-400 my-3">
-          <span>SECURE</span>
-          <span className="text-slate-500">|</span>
-          <span>EFFICIENT</span>
-          <span className="text-slate-500">|</span>
-          <span>ACCOUNTABLE</span>
-          <span className="text-slate-500">|</span>
-          <span>CONNECTED</span>
-        </div>
-
-        {/* Empowering Justice Paragraph */}
-        <div className="max-w-2xl mx-auto my-3 px-2">
-          <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-            <span className="font-bold text-white">Empowering Justice. Protecting Communities.</span>{' '}
-            A unified digital policing ecosystem connecting citizens and law enforcement. Lodge incident reports, track CAS docket milestones in real-time, safeguard evidence custody, and streamline investigations with complete transparency.
-          </p>
-        </div>
-
-        {/* Horizontal Divider Line */}
-        <div className="w-full max-w-4xl my-5 border-t border-white/15" />
-
-        {/* The 4 Capability Buttons - Blending directly with the picture (NO BOXES, NO GRADIENTS) */}
-        {/* They tell users what they can be able to do, and clicking prompts login first */}
+        {/* Four plain descriptions of the SFEN work areas. */}
         <div className="w-full max-w-4xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-left my-3">
           
-          {/* Item 1: Citizen / Complainant */}
-          <button
-            type="button"
-            onClick={() => onActionRequiresLogin('citizen')}
-            className="group p-3 transition-colors text-left cursor-pointer border-b sm:border-b-0 sm:border-r border-white/10 last:border-r-0 hover:bg-black/30"
-          >
+          <div className={`p-3 border-b sm:border-b-0 sm:border-r last:border-r-0 ${isDark ? 'border-white/15' : 'border-black/15'}`}>
             <div className="flex items-center gap-2 text-blue-400 mb-1.5">
               <FileText size={18} className="shrink-0" />
-              <span className="text-sm font-bold text-white group-hover:text-blue-400 transition-colors">
+              <span className="text-sm font-bold">
                 Report & Track Cases
               </span>
             </div>
-            <p className="text-xs text-slate-300 leading-relaxed">
+            <p className="text-xs text-slate-500 leading-relaxed">
               Submit crime incidents, receive electronic references, and track CAS docket progress.
             </p>
-            <div className="mt-2 text-[11px] font-semibold text-blue-400 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-              <span>Sign in to report</span>
-              <ArrowRight size={12} />
-            </div>
-          </button>
+            <p className="mt-2 text-[11px] font-semibold text-blue-600">Citizen reporting access</p>
+          </div>
 
-          {/* Item 2: Police Officer */}
-          <button
-            type="button"
-            onClick={() => onActionRequiresLogin('officer')}
-            className="group p-3 transition-colors text-left cursor-pointer border-b sm:border-b-0 sm:border-r border-white/10 last:border-r-0 hover:bg-black/30"
-          >
+          <div className={`p-3 border-b sm:border-b-0 sm:border-r last:border-r-0 ${isDark ? 'border-white/15' : 'border-black/15'}`}>
             <div className="flex items-center gap-2 text-blue-400 mb-1.5">
               <UserCheck size={18} className="shrink-0" />
-              <span className="text-sm font-bold text-white group-hover:text-blue-400 transition-colors">
+              <span className="text-sm font-bold">
                 Capture & Manage Cases
               </span>
             </div>
-            <p className="text-xs text-slate-300 leading-relaxed">
+            <p className="text-xs text-slate-500 leading-relaxed">
               Frontline Community Service Centre intake, docket registration, and sworn witness statements.
             </p>
-            <div className="mt-2 text-[11px] font-semibold text-blue-400 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-              <span>Official sign in</span>
-              <ArrowRight size={12} />
-            </div>
-          </button>
+            <p className="mt-2 text-[11px] font-semibold text-blue-600">Community Service Centre access</p>
+          </div>
 
-          {/* Item 3: Detective */}
-          <button
-            type="button"
-            onClick={() => onActionRequiresLogin('detective')}
-            className="group p-3 transition-colors text-left cursor-pointer border-b sm:border-b-0 sm:border-r border-white/10 last:border-r-0 hover:bg-black/30"
-          >
+          <div className={`p-3 border-b sm:border-b-0 sm:border-r last:border-r-0 ${isDark ? 'border-white/15' : 'border-black/15'}`}>
             <div className="flex items-center gap-2 text-blue-400 mb-1.5">
               <Search size={18} className="shrink-0" />
-              <span className="text-sm font-bold text-white group-hover:text-blue-400 transition-colors">
+              <span className="text-sm font-bold">
                 Investigate & Update
               </span>
             </div>
-            <p className="text-xs text-slate-300 leading-relaxed">
+            <p className="text-xs text-slate-500 leading-relaxed">
               Specialist criminal investigations, forensic diary updates, suspect logs, and court evidence.
             </p>
-            <div className="mt-2 text-[11px] font-semibold text-blue-400 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-              <span>Detective sign in</span>
-              <ArrowRight size={12} />
-            </div>
-          </button>
+            <p className="mt-2 text-[11px] font-semibold text-blue-600">Detective branch access</p>
+          </div>
 
-          {/* Item 4: Commander / Admin */}
-          <button
-            type="button"
-            onClick={() => onActionRequiresLogin('commander')}
-            className="group p-3 transition-colors text-left cursor-pointer hover:bg-black/30"
-          >
+          <div className="p-3">
             <div className="flex items-center gap-2 text-blue-400 mb-1.5">
               <ShieldCheck size={18} className="shrink-0" />
-              <span className="text-sm font-bold text-white group-hover:text-blue-400 transition-colors">
+              <span className="text-sm font-bold">
                 Monitor & Oversee
               </span>
             </div>
-            <p className="text-xs text-slate-300 leading-relaxed">
+            <p className="text-xs text-slate-500 leading-relaxed">
               Station commander oversight, docket disposal approvals, inspection diaries, and audit security.
             </p>
-            <div className="mt-2 text-[11px] font-semibold text-blue-400 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-              <span>Commander sign in</span>
-              <ArrowRight size={12} />
-            </div>
-          </button>
+            <p className="mt-2 text-[11px] font-semibold text-blue-600">Station command access</p>
+          </div>
 
         </div>
 
-        {/* Horizontal Divider Line */}
-        <div className="w-full max-w-4xl my-4 border-t border-white/15" />
+        <div className={`w-full max-w-4xl my-4 border-t ${isDark ? 'border-white/15' : 'border-black/15'}`} />
 
         {/* Bottom 2 buttons: Sign In and Create Account for citizens / complainants (users) */}
         <div className="w-full max-w-md mx-auto flex flex-col sm:flex-row items-center justify-center gap-3 mt-2">
@@ -219,7 +142,7 @@ export const WelcomePage: React.FC<WelcomePageProps> = ({
             type="button"
             id="btn-welcome-citizen-signin"
             onClick={onSignInCitizen}
-            className="w-full sm:w-1/2 py-3 px-5 rounded-md font-bold text-sm bg-blue-600 hover:bg-blue-700 text-white transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-md"
+            className="w-full sm:w-1/2 py-3 px-5 font-bold text-sm bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2 cursor-pointer"
           >
             <LogIn size={16} />
             <span>Sign In</span>
@@ -229,7 +152,7 @@ export const WelcomePage: React.FC<WelcomePageProps> = ({
             type="button"
             id="btn-welcome-citizen-signup"
             onClick={onSignUpCitizen}
-            className="w-full sm:w-1/2 py-3 px-5 rounded-md font-bold text-sm bg-black hover:bg-slate-900 text-white border border-white/30 transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-md"
+            className={`w-full sm:w-1/2 py-3 px-5 font-bold text-sm border flex items-center justify-center gap-2 cursor-pointer ${isDark ? 'bg-black hover:bg-white hover:text-black text-white border-white/30' : 'bg-white hover:bg-black hover:text-white text-black border-black/30'}`}
           >
             <UserCheck size={16} className="text-blue-500" />
             <span>Create Account</span>
@@ -239,16 +162,8 @@ export const WelcomePage: React.FC<WelcomePageProps> = ({
 
       </main>
 
-      {/* Subtle Bottom Footer - separated by a clean line */}
-      <footer className="relative z-10 w-full pb-5 pt-3 px-4 text-center border-t border-white/10">
-        <div className="flex flex-col items-center gap-1 text-slate-400">
-          <div className="text-[11px] font-bold tracking-widest uppercase text-slate-300 font-['Space_Grotesk']">
-            A Safer South Africa Through Better Records
-          </div>
-          <div className="text-[10px] text-slate-400">
-            Secure File and Evidence Network - Official Docket Administration
-          </div>
-        </div>
+      <footer className={`relative z-10 w-full py-4 px-4 text-center border-t text-[10px] ${isDark ? 'border-white/15 text-slate-400' : 'border-black/15 text-slate-600'}`}>
+        Secure File and Evidence Network | Official Docket Administration
       </footer>
 
     </div>

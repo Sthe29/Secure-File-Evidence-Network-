@@ -19,7 +19,6 @@ import {
   FileText, 
   ClipboardList, 
   FileCheck2, 
-  UserPlus, 
   CheckCircle2, 
   AlertTriangle, 
   Send, 
@@ -248,7 +247,7 @@ export const CommanderCaseWorkspaceModal: React.FC<CommanderCaseWorkspaceModalPr
     { id: 'investigation-progress' as CommanderCaseTab, label: 'Investigation Progress', icon: <FileText size={15} />, badge: diaryEntries.length },
     { id: 'supervisory-review' as CommanderCaseTab, label: 'Supervisory Review', icon: <FileCheck2 size={15} />, badge: reviews.length },
     { id: 'instructions' as CommanderCaseTab, label: 'Instructions (SAPS 5)', icon: <ClipboardList size={15} />, badge: instructions.filter(i => i.status === 'OUTSTANDING').length, highlightBadge: instructions.filter(i => i.status === 'OUTSTANDING').length > 0 },
-    { id: 'documents' as CommanderCaseTab, label: 'Documents', icon: <ShieldCheck size={15} />, badge: documents.length },
+    { id: 'documents' as CommanderCaseTab, label: 'Documents', icon: <ShieldCheck size={15} /> },
     { id: 'docket-movement' as CommanderCaseTab, label: 'Docket Movement', icon: <ArrowRightLeft size={15} />, badge: movements.length },
     { id: 'audit-trail' as CommanderCaseTab, label: 'Audit Trail', icon: <Lock size={15} /> }
   ];
@@ -310,17 +309,6 @@ export const CommanderCaseWorkspaceModal: React.FC<CommanderCaseWorkspaceModalPr
               >
                 <ArrowRightLeft size={14} />
                 <span>Return to Detective</span>
-              </button>
-            )}
-
-            {isUnassigned && (
-              <button
-                type="button"
-                onClick={() => onOpenAssignModal(currentCase)}
-                className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
-              >
-                <UserPlus size={14} />
-                <span>Assign Detective</span>
               </button>
             )}
 
@@ -534,35 +522,13 @@ export const CommanderCaseWorkspaceModal: React.FC<CommanderCaseWorkspaceModalPr
                   </div>
 
                   {/* Investigating Officer Box */}
-                  <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-3">
+                  <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800">
                     <div>
-                      <span className="text-[11px] text-slate-400 block">Assigned Investigating Officer:</span>
-                      <strong className="text-sm font-bold text-white block">
-                        {currentCase.investigatingOfficerName}
-                      </strong>
-                      <span className="text-xs font-mono text-slate-400">
-                        {currentCase.investigatingOfficerRank} • {currentCase.investigatingOfficerPersonnelNumber || 'Unassigned'}
-                      </span>
+                      <span className="text-[11px] text-slate-400 block">Investigating Officer:</span>
+                      <strong className="text-sm font-bold text-white block">Detective Inspector David Khumalo</strong>
+                      <span className="text-xs font-mono text-slate-400 block">POL-20491</span>
+                      <span className="text-[11px] text-emerald-300 mt-2 block">Automatically assigned: this station currently has one detective.</span>
                     </div>
-
-                    {isUnassigned ? (
-                      <button
-                        type="button"
-                        onClick={() => onOpenAssignModal(currentCase)}
-                        className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
-                      >
-                        <UserPlus size={14} />
-                        <span>Assign Now</span>
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => onOpenAssignModal(currentCase)}
-                        className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors cursor-pointer border border-slate-700"
-                      >
-                        <span>Re-assign</span>
-                      </button>
-                    )}
                   </div>
 
                 </div>
@@ -1025,12 +991,43 @@ export const CommanderCaseWorkspaceModal: React.FC<CommanderCaseWorkspaceModalPr
                     Complete digital repository of sworn statements, Section 205 subpoenas, and forensic reports
                   </p>
                 </div>
-                <div className="text-xs font-mono text-slate-400">
-                  {documents.length} verified documents
-                </div>
               </div>
 
-              {documents.length === 0 ? (
+              {currentCase.attachments?.length ? (
+                <div className="space-y-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
+                    Citizen Uploaded Evidence
+                  </span>
+                  <div className="space-y-2">
+                    {currentCase.attachments.map((attachment) => (
+                      <div
+                        key={attachment.id}
+                        className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-white truncate">{attachment.name}</p>
+                          <p className="text-[11px] text-slate-400 mt-1">
+                            {attachment.category} • {attachment.type} • {attachment.size}
+                          </p>
+                          <p className="text-[10px] text-slate-500 mt-1">
+                            Submitted {new Date(attachment.uploadedAt).toLocaleString()}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => attachment.dataUrl ? window.open(attachment.dataUrl, '_blank', 'noopener,noreferrer') : alert('This older attachment only has file details saved. Request a new copy before relying on it as evidence.')}
+                          className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                        >
+                          <Eye size={14} />
+                          <span>View evidence</span>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {documents.length === 0 && !currentCase.attachments?.length ? (
                 <div className="p-10 text-center rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
                   <ShieldCheck size={32} className="text-slate-600 mx-auto" />
                   <h4 className="text-sm font-bold text-white">No documents uploaded yet</h4>

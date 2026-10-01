@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Eye, EyeOff, Lock, User, AlertCircle, ArrowRight, Loader2 } from 'lucide-react';
-import { LoginCredentials, UserProfile, DemoAccount } from '../types/auth';
-import { authenticatePersonnel, validateCredentials } from '../services/authService';
+import { LoginCredentials, UserProfile } from '../types/auth';
+import { authenticatePersonnel, setInitialPersonnelPassword, validateCredentials } from '../services/authService';
 import { SfenLogo } from './SfenLogo';
 import { SecurityNoticeBanner } from './SecurityNoticeBanner';
 import { useTheme } from '../context/ThemeContext';
@@ -9,14 +9,12 @@ import { useTheme } from '../context/ThemeContext';
 interface LoginFormProps {
   onSuccess: (user: UserProfile) => void;
   onForgotPassword: (identifier: string) => void;
-  prefillAccount?: DemoAccount | null;
   targetRoleNotice?: string | null;
 }
 
 export const LoginForm: React.FC<LoginFormProps> = ({
   onSuccess,
   onForgotPassword,
-  prefillAccount,
   targetRoleNotice
 }) => {
   const { isDark } = useTheme();
@@ -27,6 +25,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [capsLockActive, setCapsLockActive] = useState(false);
+  const [initialPasswordSession, setInitialPasswordSession] = useState<{ user: UserProfile; token: string } | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
 
   const identifierInputRef = useRef<HTMLInputElement>(null);
   const passwordInputRef = useRef<HTMLInputElement>(null);
@@ -43,15 +44,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({
       // Ignore in restricted environments
     }
   }, []);
-
-  // Update fields when prefillAccount changes
-  useEffect(() => {
-    if (prefillAccount) {
-      setIdentifier(prefillAccount.personnelNumber);
-      setPassword(prefillAccount.password);
-      setErrorMessage(null);
-    }
-  }, [prefillAccount]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     const isCaps = e.getModifierState && e.getModifierState('CapsLock');
@@ -79,7 +71,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({
     try {
       const response = await authenticatePersonnel(credentials);
 
-      if (response.success && response.user) {
+      if (response.success && response.user && response.requiresPasswordChange && response.token) {
+        setInitialPasswordSession({ user: response.user, token: response.token });
+      } else if (response.success && response.user) {
         onSuccess(response.user);
       } else {
         setErrorMessage(response.message || 'Authentication rejected. Please verify your credentials.');
@@ -89,6 +83,25 @@ export const LoginForm: React.FC<LoginFormProps> = ({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSetInitialPassword = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!initialPasswordSession) return;
+    setErrorMessage(null);
+    if (newPassword.length < 8 || newPassword !== confirmNewPassword) {
+      setErrorMessage(newPassword.length < 8 ? 'Your new password must contain at least 8 characters.' : 'The new passwords do not match.');
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const result = await setInitialPersonnelPassword(initialPasswordSession.token, newPassword);
+      if (!result.success) { setErrorMessage(result.message); return; }
+      const user = initialPasswordSession.user;
+      try { localStorage.setItem('sfen_auth_token', initialPasswordSession.token); localStorage.setItem('sfen_authenticated_officer', JSON.stringify(user)); } catch { /* optional browser storage */ }
+      onSuccess(user);
+    } catch { setErrorMessage('Unable to set the permanent password. Please try again.'); }
+    finally { setIsLoading(false); }
   };
 
   return (
@@ -147,6 +160,17 @@ export const LoginForm: React.FC<LoginFormProps> = ({
 
       {/* Horizontal Divider Line */}
       <div className={`my-4 border-t ${isDark ? 'border-white/10' : 'border-black/10'}`} />
+
+      {initialPasswordSession ? (
+        <form onSubmit={handleSetInitialPassword} className="space-y-4">
+          <div className={`p-3 rounded-md border text-xs ${isDark ? 'bg-blue-950/30 border-blue-500/30 text-blue-100' : 'bg-blue-50 border-blue-200 text-blue-900'}`}>
+            First sign-in confirmed for <strong>{initialPasswordSession.user.fullName}</strong>. Set your own permanent password to continue.
+          </div>
+          <div className="space-y-1.5"><label className={`text-xs font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>New password</label><input type="password" autoFocus required minLength={8} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className={`w-full px-3 py-2.5 rounded-md text-sm border focus:outline-none focus:ring-2 focus:ring-blue-600 ${isDark ? 'bg-black border-slate-700 text-white' : 'bg-white border-slate-300 text-black'}`} /></div>
+          <div className="space-y-1.5"><label className={`text-xs font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>Confirm new password</label><input type="password" required minLength={8} value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} className={`w-full px-3 py-2.5 rounded-md text-sm border focus:outline-none focus:ring-2 focus:ring-blue-600 ${isDark ? 'bg-black border-slate-700 text-white' : 'bg-white border-slate-300 text-black'}`} /></div>
+          <button type="submit" disabled={isLoading} className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-sm rounded-md cursor-pointer">{isLoading ? 'Saving password...' : 'Set Password and Continue'}</button>
+        </form>
+      ) : (<>
 
       {/* Login Form */}
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
@@ -285,6 +309,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
           </button>
         </div>
       </form>
+      </>)}
 
       {/* Line going side by side */}
       <div className={`mt-6 pt-5 border-t text-center ${isDark ? 'border-white/10 text-slate-400' : 'border-black/10 text-slate-600'}`}>

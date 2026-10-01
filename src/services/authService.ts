@@ -117,6 +117,7 @@ export async function authenticatePersonnel(credentials: LoginCredentials): Prom
   const payload = await response.json() as {
     message?: string;
     token?: string;
+    mustChangePassword?: boolean;
     user?: Omit<UserProfile, 'clearanceLevel' | 'lastLogin' | 'token'>;
   };
 
@@ -140,8 +141,10 @@ export async function authenticatePersonnel(credentials: LoginCredentials): Prom
   try {
     if (credentials.rememberMe) localStorage.setItem('sfen_last_identifier', credentials.identifier);
     else localStorage.removeItem('sfen_last_identifier');
-    localStorage.setItem('sfen_auth_token', payload.token);
-    localStorage.setItem('sfen_authenticated_officer', JSON.stringify(userProfile));
+    if (!payload.mustChangePassword) {
+      localStorage.setItem('sfen_auth_token', payload.token);
+      localStorage.setItem('sfen_authenticated_officer', JSON.stringify(userProfile));
+    }
   } catch {
     // The application remains usable if browser storage is restricted.
   }
@@ -150,8 +153,15 @@ export async function authenticatePersonnel(credentials: LoginCredentials): Prom
     success: true,
     message: `Authentication successful. Role verified as [${ROLE_DETAILS[role].label}].`,
     user: userProfile,
-    token: payload.token
+    token: payload.token,
+    requiresPasswordChange: Boolean(payload.mustChangePassword)
   };
+}
+
+export async function setInitialPersonnelPassword(token: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+  const response = await fetch('/api/auth/set-initial-password', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ newPassword }) });
+  const payload = await response.json() as { message?: string };
+  return { success: response.ok, message: payload.message || (response.ok ? 'Password updated.' : 'Unable to update password.') };
 }
 
 /**
@@ -265,23 +275,23 @@ function normalizePhone(phone: string): string {
  */
 export async function registerCitizen(data: import('../types/auth').CitizenSignUpData): Promise<import('../types/auth').CitizenAuthResponse> {
   const response = await fetch('/api/citizens/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-  const payload = await response.json() as { message?: string; token?: string; user?: { id: string; fullName: string; email: string; phoneNumber?: string; createdAt: string } };
+  const payload = await response.json() as { message?: string; token?: string; user?: { id: string; fullName: string; email: string; nationalId?: string; phoneNumber?: string; createdAt: string } };
   if (!response.ok || !payload.token || !payload.user) return { success: false, message: payload.message || 'Registration failed.' };
-  const citizen = { id: payload.user.id, fullName: payload.user.fullName, email: payload.user.email, phoneNumber: payload.user.phoneNumber || data.phoneNumber, registeredAt: payload.user.createdAt, activeDocketsCount: 0, token: payload.token };
+  const citizen = { id: payload.user.id, fullName: payload.user.fullName, email: payload.user.email, nationalId: payload.user.nationalId || data.nationalId, phoneNumber: payload.user.phoneNumber || data.phoneNumber, registeredAt: payload.user.createdAt, activeDocketsCount: 0, token: payload.token };
   try { localStorage.setItem('sfen_auth_token', payload.token); } catch { /* storage is optional */ }
   return { success: true, message: 'Citizen account registered successfully.', citizen, token: payload.token };
 
 }
 
 /**
- * Authenticate an existing citizen using Email, Phone Number, or both, plus Password.
+ * Authenticate an existing citizen using their registered 13-digit ID number and password.
  */
 export async function authenticateCitizen(credentials: import('../types/auth').CitizenLoginCredentials): Promise<import('../types/auth').CitizenAuthResponse> {
-  const identifier = credentials.email.trim() || credentials.phoneNumber.trim();
+  const identifier = credentials.nationalId.trim();
   const response = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identifier, password: credentials.password }) });
-  const payload = await response.json() as { message?: string; token?: string; user?: { id: string; fullName: string; email: string; phoneNumber?: string; role: string; createdAt?: string } };
+  const payload = await response.json() as { message?: string; token?: string; user?: { id: string; fullName: string; email: string; nationalId?: string; phoneNumber?: string; role: string; createdAt?: string } };
   if (!response.ok || !payload.token || !payload.user || payload.user.role !== 'COMPLAINANT') return { success: false, message: payload.message || 'Authentication rejected.' };
-  const citizen = { id: payload.user.id, fullName: payload.user.fullName, email: payload.user.email, phoneNumber: payload.user.phoneNumber || credentials.phoneNumber, registeredAt: payload.user.createdAt || new Date().toISOString(), activeDocketsCount: 0, token: payload.token };
+  const citizen = { id: payload.user.id, fullName: payload.user.fullName, email: payload.user.email, nationalId: payload.user.nationalId || credentials.nationalId, phoneNumber: payload.user.phoneNumber || '', registeredAt: payload.user.createdAt || new Date().toISOString(), activeDocketsCount: 0, token: payload.token };
   try { localStorage.setItem('sfen_auth_token', payload.token); } catch { /* storage is optional */ }
   return { success: true, message: 'Authentication successful.', citizen, token: payload.token };
 

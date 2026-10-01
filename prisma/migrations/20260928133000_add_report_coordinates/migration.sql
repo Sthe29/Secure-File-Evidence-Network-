@@ -1,0 +1,2 @@
+ALTER TABLE "IncidentReport" ADD COLUMN "latitude" DOUBLE PRECISION;
+ALTER TABLE "IncidentReport" ADD COLUMN "longitude" DOUBLE PRECISION;

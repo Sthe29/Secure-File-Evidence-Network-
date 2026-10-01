@@ -271,17 +271,6 @@ export const CommanderCasesView: React.FC<CommanderCasesViewProps> = ({
 
                 {/* Right Action Buttons */}
                 <div className="flex items-center gap-2.5 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-800">
-                  {isUnassigned && (
-                    <button
-                      type="button"
-                      onClick={() => onOpenAssignModal(c)}
-                      className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
-                    >
-                      <UserPlus size={14} />
-                      <span>Assign Detective</span>
-                    </button>
-                  )}
-
                   <button
                     type="button"
                     onClick={() => onOpenCase(c, 'overview')}

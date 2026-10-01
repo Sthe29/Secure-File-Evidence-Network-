@@ -66,9 +66,8 @@ export const DetectiveDashboardView: React.FC<DetectiveDashboardViewProps> = ({
         
         {/* 1. Assigned Cases */}
         <div 
-          onClick={() => onNavigateToCases('cases')}
-          className={`p-4 rounded-md border transition-colors cursor-pointer group flex flex-col justify-between ${
-            isDark ? 'bg-black border-slate-800 hover:border-blue-600' : 'bg-white border-slate-200 hover:border-blue-600'
+          className={`p-4 rounded-md border flex flex-col justify-between ${
+            isDark ? 'bg-black border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
           <div className="flex items-center justify-between">
@@ -94,9 +93,8 @@ export const DetectiveDashboardView: React.FC<DetectiveDashboardViewProps> = ({
 
         {/* 2. Requiring Attention */}
         <div 
-          onClick={() => onNavigateToCases('cases')}
-          className={`p-4 rounded-md border transition-colors cursor-pointer group flex flex-col justify-between ${
-            isDark ? 'bg-black border-slate-800 hover:border-blue-600' : 'bg-white border-slate-200 hover:border-blue-600'
+          className={`p-4 rounded-md border flex flex-col justify-between ${
+            isDark ? 'bg-black border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
           <div className="flex items-center justify-between">
@@ -122,9 +120,8 @@ export const DetectiveDashboardView: React.FC<DetectiveDashboardViewProps> = ({
 
         {/* 3. Outstanding Supervisor Directives */}
         <div 
-          onClick={() => onNavigateToCases('directives')}
-          className={`p-4 rounded-md border transition-colors cursor-pointer group flex flex-col justify-between ${
-            isDark ? 'bg-black border-slate-800 hover:border-blue-600' : 'bg-white border-slate-200 hover:border-blue-600'
+          className={`p-4 rounded-md border flex flex-col justify-between ${
+            isDark ? 'bg-black border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
           <div className="flex items-center justify-between">
@@ -150,9 +147,8 @@ export const DetectiveDashboardView: React.FC<DetectiveDashboardViewProps> = ({
 
         {/* 4. Court Ready / Finalized */}
         <div 
-          onClick={() => onNavigateToCases('cases')}
-          className={`p-4 rounded-md border transition-colors cursor-pointer group flex flex-col justify-between ${
-            isDark ? 'bg-black border-slate-800 hover:border-blue-600' : 'bg-white border-slate-200 hover:border-blue-600'
+          className={`p-4 rounded-md border flex flex-col justify-between ${
+            isDark ? 'bg-black border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
           <div className="flex items-center justify-between">

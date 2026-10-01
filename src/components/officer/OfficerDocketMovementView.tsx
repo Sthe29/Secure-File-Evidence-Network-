@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { DocketMovementRecord } from '../../types/officer';
+import { DocketMovementRecord, OfficerAuditLog } from '../../types/officer';
 import { RegisteredCase } from '../../types/complainant';
 import { UserProfile } from '../../types/auth';
 import { 
@@ -13,11 +13,13 @@ import {
   ShieldCheck, 
   X, 
   FileCheck2, 
-  ArrowRight
+  ArrowRight,
+  ClipboardList
 } from 'lucide-react';
 
 interface OfficerDocketMovementViewProps {
   movements: DocketMovementRecord[];
+  auditLogs: OfficerAuditLog[];
   registeredCases: RegisteredCase[];
   officer: UserProfile;
   onInitiateMovement: (params: {
@@ -48,6 +50,7 @@ const DESTINATION_UNITS = [
 
 export const OfficerDocketMovementView: React.FC<OfficerDocketMovementViewProps> = ({
   movements,
+  auditLogs,
   registeredCases,
   officer,
   onInitiateMovement,
@@ -74,12 +77,35 @@ export const OfficerDocketMovementView: React.FC<OfficerDocketMovementViewProps>
     );
   });
 
-  const handleStartInitiate = () => {
-    if (registeredCases.length > 0) {
-      setSelectedCaseNum(registeredCases[0].caseNumber);
-    }
-    setIsInitiatingModalOpen(true);
-  };
+  const officerAuditLogs = auditLogs.filter((log) =>
+    log.personnelNumber === officer.personnelNumber || log.officerId === officer.id
+  );
+  const accountabilityTimeline = [
+    ...filteredMovements.map((movement) => ({
+      id: `movement-${movement.id}`,
+      timestamp: movement.dispatchedAt,
+      reference: movement.caseNumber,
+      title: 'Docket handover initiated',
+      description: `Transferred to ${movement.destination}. ${movement.dispatchNotes}`,
+      kind: 'movement' as const
+    })),
+    ...filteredMovements.filter((movement) => movement.receivedAt).map((movement) => ({
+      id: `receipt-${movement.id}`,
+      timestamp: movement.receivedAt!,
+      reference: movement.caseNumber,
+      title: 'Docket receipt acknowledged',
+      description: `${movement.receivedByRank || 'Receiving officer'} ${movement.receivedBy || 'Detective Branch'} acknowledged receipt.${movement.receiptNotes ? ` ${movement.receiptNotes}` : ''}`,
+      kind: 'receipt' as const
+    })),
+    ...officerAuditLogs.map((log) => ({
+      id: `audit-${log.id}`,
+      timestamp: log.timestamp,
+      reference: log.referenceNumber,
+      title: log.actionType.replaceAll('_', ' '),
+      description: log.description,
+      kind: 'audit' as const
+    }))
+  ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,17 +149,6 @@ export const OfficerDocketMovementView: React.FC<OfficerDocketMovementViewProps>
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            id="btn-initiate-docket-movement"
-            onClick={handleStartInitiate}
-            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center gap-2 transition-all shadow-xs cursor-pointer"
-          >
-            <Send size={14} />
-            <span>Initiate Handover</span>
-          </button>
-        </div>
       </div>
 
       {/* Search and Context Bar */}
@@ -166,6 +181,39 @@ export const OfficerDocketMovementView: React.FC<OfficerDocketMovementViewProps>
           </p>
         </div>
       </div>
+
+      {/* Combined officer actions and docket custody timeline */}
+      <section className="border-t border-slate-800 pt-5 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <ClipboardList size={17} className="text-blue-400" />
+            <div>
+              <h3 className="text-sm font-bold text-white">My Actions & Docket Movements</h3>
+              <p className="text-[11px] text-slate-400">Your station work and the related chain-of-custody events, in time order.</p>
+            </div>
+          </div>
+          <span className="text-[10px] font-mono text-slate-400">{accountabilityTimeline.length} logged events</span>
+        </div>
+        {accountabilityTimeline.length === 0 ? (
+          <p className="py-4 text-xs text-slate-400 border-y border-slate-800">No officer actions or docket movements match this view yet.</p>
+        ) : (
+          <div className="divide-y divide-slate-800 border-y border-slate-800">
+            {accountabilityTimeline.map((event) => (
+              <div key={event.id} className="py-3 flex items-start gap-3 text-xs">
+                <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${event.kind === 'receipt' ? 'bg-emerald-400' : event.kind === 'movement' ? 'bg-amber-400' : 'bg-blue-400'}`} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <strong className="text-slate-200">{event.title}</strong>
+                    <span className="font-mono text-[10px] text-blue-300">{event.reference}</span>
+                  </div>
+                  <p className="text-slate-400 leading-relaxed mt-0.5">{event.description}</p>
+                </div>
+                <time className="shrink-0 text-[10px] font-mono text-slate-500">{new Date(event.timestamp).toLocaleString()}</time>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* Movement Cards / List */}
       {filteredMovements.length === 0 ? (
@@ -374,7 +422,7 @@ export const OfficerDocketMovementView: React.FC<OfficerDocketMovementViewProps>
               <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 text-xs text-slate-400 space-y-1">
                 <div className="flex justify-between">
                   <span>Initiating Station:</span>
-                  <span className="font-semibold text-white">{officer.station || 'SAPS Sandton Police Station'}</span>
+                  <span className="font-semibold text-white">{officer.station || 'SAPS Berea Police Station'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Dispatching Officer:</span>

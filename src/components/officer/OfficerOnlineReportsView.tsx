@@ -35,7 +35,7 @@ interface OfficerOnlineReportsViewProps {
   officer: UserProfile;
   onReviewReport: (reportId: string) => void;
   onRequestAdditionalInfo: (reportId: string, notes: string) => { success: boolean; message: string };
-  onRegisterCase: (input: CaseRegistrationInput) => { success: boolean; caseNumber: string; message: string };
+  onRegisterCase: (input: CaseRegistrationInput) => Promise<{ success: boolean; caseNumber: string; message: string }>;
   onViewRegisteredCase?: (caseNumber: string) => void;
 }
 
@@ -61,6 +61,9 @@ export const OfficerOnlineReportsView: React.FC<OfficerOnlineReportsViewProps> =
 
   // Filtered reports
   const filteredReports = reports.filter((r) => {
+    // Officially registered matters are shown in the CAS case list, not online reports.
+    if (r.status === 'Registered to Case' || r.linkedCaseNumber) return false;
+
     const matchesSearch = 
       r.referenceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
       r.complainantName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -73,6 +76,7 @@ export const OfficerOnlineReportsView: React.FC<OfficerOnlineReportsViewProps> =
     if (statusFilter === 'AWAITING') return r.status === 'Awaiting Review';
     if (statusFilter === 'IN_PROGRESS') return r.status === 'Under Station Review' || r.status === 'Additional Info Required';
     if (statusFilter === 'REGISTERED') return r.status === 'Registered to Case';
+    if (statusFilter === 'ARCHIVED') return r.status === 'Archived';
 
     return true;
   });
@@ -107,6 +111,8 @@ export const OfficerOnlineReportsView: React.FC<OfficerOnlineReportsViewProps> =
             Registered {linkedCas ? `(${linkedCas})` : ''}
           </span>
         );
+      case 'Archived':
+        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700">Archived: no station attendance</span>;
       default:
         return (
           <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-800 text-slate-300">
@@ -178,6 +184,7 @@ export const OfficerOnlineReportsView: React.FC<OfficerOnlineReportsViewProps> =
             { id: 'AWAITING', label: 'Awaiting Review', count: reports.filter(r => r.status === 'Awaiting Review').length },
             { id: 'IN_PROGRESS', label: 'Under Review / Info Requested', count: reports.filter(r => r.status === 'Under Station Review' || r.status === 'Additional Info Required').length },
             { id: 'REGISTERED', label: 'Registered to Official Case', count: reports.filter(r => r.status === 'Registered to Case').length }
+            ,{ id: 'ARCHIVED', label: 'Archived', count: reports.filter(r => r.status === 'Archived').length }
           ].map(tab => (
             <button
               key={tab.id}
@@ -500,7 +507,7 @@ export const OfficerOnlineReportsView: React.FC<OfficerOnlineReportsViewProps> =
 
                         <button
                           type="button"
-                          onClick={() => alert(`Viewing file: ${file.name}\nSize: ${file.size}\nAttached to report ${selectedReport.referenceNumber}`)}
+                          onClick={() => file.dataUrl ? window.open(file.dataUrl, '_blank', 'noopener,noreferrer') : alert('This older attachment only has file details saved. Ask the complainant to provide a new copy if needed.')}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer shrink-0"
                           title="View / Download"
                         >

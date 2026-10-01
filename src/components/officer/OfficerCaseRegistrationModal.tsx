@@ -15,8 +15,9 @@ import {
   FileCheck2,
   ArrowRight,
   Shield,
-  Layers,
-  FileText
+  FileText,
+  Upload,
+  Paperclip
 } from 'lucide-react';
 
 interface OfficerCaseRegistrationModalProps {
@@ -25,7 +26,7 @@ interface OfficerCaseRegistrationModalProps {
   isOpen: boolean;
   onClose: () => void;
   onRegistered: (caseNumber: string) => void;
-  onRegisterCase: (input: CaseRegistrationInput) => { success: boolean; caseNumber: string; message: string };
+  onRegisterCase: (input: CaseRegistrationInput) => Promise<{ success: boolean; caseNumber: string; message: string }>;
 }
 
 const STATUTORY_OFFENCES: Record<string, { code: string; defaultDest: string }> = {
@@ -71,15 +72,6 @@ const STATUTORY_OFFENCES: Record<string, { code: string; defaultDest: string }> 
   }
 };
 
-const DESTINATION_UNITS = [
-  'Detective Branch - General Crimes Desk',
-  'Detective Branch - Serious & Violent Crimes Desk',
-  'Commercial Crime Section - Specialist Branch',
-  'Family Violence, Child Protection & Sexual Offences (FCS) Unit',
-  'Vehicle Crime Investigation Unit (VCIU)',
-  'Branch Commander - Intake Review Desk'
-];
-
 export const OfficerCaseRegistrationModal: React.FC<OfficerCaseRegistrationModalProps> = ({
   report,
   officer,
@@ -100,21 +92,37 @@ export const OfficerCaseRegistrationModal: React.FC<OfficerCaseRegistrationModal
   const [chargeDescription, setChargeDescription] = useState(report.incidentType);
   const [statutoryCode, setStatutoryCode] = useState(offenceMapping.code);
   const [priorityLevel, setPriorityLevel] = useState<'Standard' | 'Urgent' | 'High Priority'>('Standard');
-  const [destinationUnit, setDestinationUnit] = useState(offenceMapping.defaultDest);
+  const destinationUnit = offenceMapping.defaultDest;
   const [complainantIdNumber, setComplainantIdNumber] = useState('920412 5082 089');
   const [complainantPresentAtDesk, setComplainantPresentAtDesk] = useState(true);
   const [idVerified, setIdVerified] = useState(true);
   const [swornDeclarationAccepted, setSwornDeclarationAccepted] = useState(true);
+  const [formalStatement, setFormalStatement] = useState('');
+  const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
+  const [evidenceIntakeNotes, setEvidenceIntakeNotes] = useState('');
   const [officerIntakeNotes, setOfficerIntakeNotes] = useState(
     `Complainant attended police station in-person. Online submission ${report.referenceNumber} reviewed with complainant. ID verified, sworn affidavit formalized and registered into official CAS crime register. Docket dispatched to Detective Branch.`
   );
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [registeredCasResult, setRegisteredCasResult] = useState<string | null>(null);
+  const canRegisterCas =
+    complainantPresentAtDesk &&
+    idVerified &&
+    complainantIdNumber.trim().length > 0 &&
+    formalStatement.trim().length >= 20 &&
+    swornDeclarationAccepted;
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const readEvidenceFile = (file: File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error(`Could not read ${file.name}.`));
+    reader.readAsDataURL(file);
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
 
@@ -138,9 +146,23 @@ export const OfficerCaseRegistrationModal: React.FC<OfficerCaseRegistrationModal
       return;
     }
 
+    if (formalStatement.trim().length < 20) {
+      setErrorMsg('The detective or station officer must record a formal statement before registering the CAS docket.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
+      if (evidenceFiles.some((file) => file.size > 15 * 1024 * 1024)) {
+        throw new Error('Each evidence file must be 15 MB or smaller.');
+      }
+      const encodedEvidence = await Promise.all(evidenceFiles.map(async (file) => ({
+        name: file.name,
+        type: file.type || 'Unknown file type',
+        size: file.size,
+        dataUrl: await readEvidenceFile(file)
+      })));
       const input: CaseRegistrationInput = {
         reportId: report.id,
         reportReference: report.referenceNumber,
@@ -155,11 +177,14 @@ export const OfficerCaseRegistrationModal: React.FC<OfficerCaseRegistrationModal
         chargeDescription,
         statutoryCode,
         priorityLevel,
+        formalStatement: formalStatement.trim(),
+        evidenceItems: encodedEvidence,
+        evidenceIntakeNotes: evidenceIntakeNotes.trim(),
         initialDocketDestination: destinationUnit,
         officerIntakeNotes
       };
 
-      const res = onRegisterCase(input);
+      const res = await onRegisterCase(input);
       if (res.success) {
         setRegisteredCasResult(res.caseNumber);
         setTimeout(() => {
@@ -168,19 +193,19 @@ export const OfficerCaseRegistrationModal: React.FC<OfficerCaseRegistrationModal
       } else {
         setErrorMsg(res.message);
       }
-    } catch {
-      setErrorMsg('An unexpected error occurred during case registration.');
+    } catch (reason) {
+      setErrorMsg(reason instanceof Error ? reason.message : 'An unexpected error occurred during case registration.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm overflow-y-auto">
-      <div className="w-full max-w-2xl my-8 rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md overflow-y-auto">
+      <div className="sfen-docket-modal w-full max-w-2xl my-8 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         
         {/* Top Header */}
-        <div className="p-5 sm:p-6 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+        <div className="p-5 sm:p-6 bg-slate-950/45 border-b border-white/15 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/30 text-blue-400 flex items-center justify-center">
               <FolderPlus size={20} />
@@ -195,7 +220,7 @@ export const OfficerCaseRegistrationModal: React.FC<OfficerCaseRegistrationModal
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                Register official CAS docket linked to complainant submission • {officer.station || 'SAPS Sandton Police Station'}
+                Register official CAS docket linked to complainant submission • {officer.station || 'SAPS Berea Police Station'}
               </p>
             </div>
           </div>
@@ -203,7 +228,7 @@ export const OfficerCaseRegistrationModal: React.FC<OfficerCaseRegistrationModal
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-850 cursor-pointer"
+            className="p-1.5 rounded-lg border border-white/15 bg-white/10 text-slate-300 hover:text-white hover:bg-white/15 cursor-pointer"
           >
             <X size={18} />
           </button>
@@ -252,7 +277,7 @@ export const OfficerCaseRegistrationModal: React.FC<OfficerCaseRegistrationModal
             </div>
 
             {/* Online Filed Report Overview for In-Station Officer Review */}
-            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+            <div className="sfen-glass-panel p-4 rounded-xl space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-slate-300 flex items-center gap-1.5">
                   <FileText size={14} className="text-blue-400" />
@@ -271,7 +296,7 @@ export const OfficerCaseRegistrationModal: React.FC<OfficerCaseRegistrationModal
             </div>
 
             {/* In-Person Attendance & Identity Verification Checklist */}
-            <div className="p-4 rounded-xl bg-blue-950/20 border border-blue-500/30 space-y-3">
+            <div className="sfen-glass-panel p-4 rounded-xl space-y-3">
               <span className="text-xs font-bold text-blue-300 uppercase tracking-wider block">
                 In-Person Station Desk Verification
               </span>
@@ -365,8 +390,72 @@ export const OfficerCaseRegistrationModal: React.FC<OfficerCaseRegistrationModal
             {/* Section 2: Offence Classification */}
             <div className="space-y-3 pt-2 border-t border-slate-800/80">
               <div className="flex items-center gap-2 text-xs font-bold text-slate-300 uppercase tracking-wider">
+                <FileCheck2 size={14} className="text-blue-400" />
+                <span>2. Formal Statement Taken at Station</span>
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-400 mb-1">
+                  Official Statement Recorded by Detective / Officer <span className="text-rose-400">*</span>
+                </label>
+                <textarea
+                  rows={5}
+                  value={formalStatement}
+                  onChange={(e) => setFormalStatement(e.target.value)}
+                  placeholder="Write the formal station statement after interviewing the complainant. The online description above is reference material only."
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-blue-500 leading-relaxed"
+                  required
+                />
+                <p className="text-[10px] text-slate-400 mt-1">This starts blank. The detective or station officer must record the verified statement before the CAS docket can be created.</p>
+              </div>
+            </div>
+
+            <div className="space-y-3 pt-2 border-t border-slate-800/80">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-300 uppercase tracking-wider">
+                <Paperclip size={14} className="text-blue-400" />
+                <span>3. Evidence Received at Station</span>
+              </div>
+              <label className="flex flex-col items-center justify-center gap-2 min-h-28 p-4 rounded-xl border border-dashed border-blue-300/40 bg-slate-950/70 text-center cursor-pointer hover:border-blue-400 hover:bg-slate-900/80 transition-colors">
+                <Upload size={18} className="text-blue-400" />
+                <span className="text-xs font-semibold text-slate-200">Add photos, videos, documents, or other digital evidence</span>
+                <span className="text-[10px] text-slate-400">Files are recorded on this case docket before the CAS number is created.</span>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*,video/*,.pdf,.doc,.docx,.txt,.mp3,.wav"
+                  onChange={(e) => setEvidenceFiles(Array.from(e.target.files || []))}
+                  className="sr-only"
+                />
+              </label>
+              {evidenceFiles.length > 0 && (
+                <div className="space-y-2">
+                  {evidenceFiles.map((file) => (
+                    <div key={`${file.name}-${file.size}`} className="flex items-center justify-between gap-3 p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-xs">
+                      <span className="text-slate-200 truncate">{file.name}</span>
+                      <span className="text-slate-400 font-mono shrink-0">{Math.max(1, Math.round(file.size / 1024))} KB</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-300 mb-1.5">
+                  Evidence received at station: identifying details <span className="text-slate-500 font-normal">(optional)</span>
+                </label>
+                <textarea
+                  rows={3}
+                  value={evidenceIntakeNotes}
+                  onChange={(e) => setEvidenceIntakeNotes(e.target.value)}
+                  placeholder="Example: 1 x firearm, make/model, serial number, magazine count, exhibit bag or seal number, and receiving officer details."
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 leading-relaxed"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">Use this for physical exhibits and identifying information that cannot be captured by a file name alone.</p>
+              </div>
+            </div>
+
+            {/* Section 4: Offence Classification */}
+            <div className="space-y-3 pt-2 border-t border-slate-800/80">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-300 uppercase tracking-wider">
                 <Shield size={14} className="text-blue-400" />
-                <span>2. Offence & Crime Classification</span>
+                <span>4. Offence & Crime Classification</span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -390,7 +479,9 @@ export const OfficerCaseRegistrationModal: React.FC<OfficerCaseRegistrationModal
                   <select
                     value={priorityLevel}
                     onChange={(e) => setPriorityLevel(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-blue-500 cursor-pointer"
+                    className={`w-full px-3 py-2 rounded-xl border text-xs focus:outline-none focus:border-blue-500 cursor-pointer ${
+                      priorityLevel === 'High Priority' ? 'bg-red-600/20 border-red-500 text-red-100' : priorityLevel === 'Urgent' ? 'bg-red-500/10 border-red-500/35 text-red-200' : 'bg-slate-950 border-slate-800 text-slate-200'
+                    }`}
                   >
                     <option value="Standard">Standard Priority</option>
                     <option value="Urgent">Urgent (Witness/Evidence Risk)</option>
@@ -414,33 +505,7 @@ export const OfficerCaseRegistrationModal: React.FC<OfficerCaseRegistrationModal
               </div>
             </div>
 
-            {/* Section 3: Docket Handover Destination */}
             <div className="space-y-3 pt-2 border-t border-slate-800/80">
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-300 uppercase tracking-wider">
-                <Layers size={14} className="text-blue-400" />
-                <span>3. Initial Docket Handover Destination</span>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-400 mb-1">
-                  Receiving Detective / Investigation Desk
-                </label>
-                <select
-                  value={destinationUnit}
-                  onChange={(e) => setDestinationUnit(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-blue-500 cursor-pointer"
-                >
-                  {DESTINATION_UNITS.map((unit) => (
-                    <option key={unit} value={unit}>
-                      {unit}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-[10px] text-slate-400 mt-1">
-                  Upon registration, an initial Docket Movement entry will be logged into this receiving unit.
-                </p>
-              </div>
-
               <div>
                 <label className="block text-[11px] font-semibold text-slate-400 mb-1">
                   Station Officer Sworn Intake Notes
@@ -483,14 +548,20 @@ export const OfficerCaseRegistrationModal: React.FC<OfficerCaseRegistrationModal
               <button
                 type="submit"
                 id="btn-confirm-register-case"
-                disabled={isSubmitting}
-                className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shadow-md"
+                disabled={isSubmitting || !canRegisterCas}
+                title={!canRegisterCas ? 'Verify the ID, write the formal statement, and certify the intake before registering a CAS docket.' : undefined}
+                className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-45 disabled:cursor-not-allowed text-white text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shadow-md"
               >
                 <FolderPlus size={15} />
                 <span>{isSubmitting ? 'Registering Docket...' : 'Register Official CAS & Transfer to Detective Branch'}</span>
                 <ArrowRight size={14} />
               </button>
             </div>
+            {!canRegisterCas && (
+              <p className="text-[11px] text-amber-300 text-right">
+                Complete ID verification, the formal statement, and officer certification to enable CAS registration.
+              </p>
+            )}
           </form>
         )}
 

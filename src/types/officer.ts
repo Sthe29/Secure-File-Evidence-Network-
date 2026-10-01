@@ -12,6 +12,7 @@ export type OfficerTab =
 export type OfficerAuditAction = 
   | 'REPORT_REVIEWED'
   | 'MORE_INFO_REQUESTED'
+  | 'WALK_IN_INTAKE_CREATED'
   | 'CASE_REGISTERED'
   | 'DOCKET_HANDOVER_INITIATED'
   | 'DOCKET_RECEIPT_ACKNOWLEDGED';
@@ -81,6 +82,15 @@ export interface CaseRegistrationInput {
   chargeDescription: string;
   statutoryCode: string;
   priorityLevel: 'Standard' | 'Urgent' | 'High Priority';
+  formalStatement: string;
+  evidenceItems: Array<{
+    name: string;
+    type: string;
+    size: number;
+    dataUrl?: string;
+  }>;
+  evidenceIntakeNotes?: string;
+  officialCaseNumber?: string;
   initialDocketDestination: string;
   officerIntakeNotes: string;
 }

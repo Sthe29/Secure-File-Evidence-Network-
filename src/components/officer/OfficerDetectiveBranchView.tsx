@@ -502,28 +502,13 @@ export const OfficerDetectiveBranchView: React.FC<OfficerDetectiveBranchViewProp
                       <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
                         Investigating Officer (IO)
                       </span>
-                      {isUnassigned ? (
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-amber-300 font-semibold">Pending Assignment</span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setAllocatingCase(c);
-                              setSelectedDetectiveId(detectives[0]?.id || '');
-                            }}
-                            className="text-[11px] text-indigo-400 hover:underline font-bold cursor-pointer"
-                          >
-                            Assign Now
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <ShieldCheck size={14} className="text-indigo-400 shrink-0" />
-                          <span className="text-xs text-slate-200 font-semibold truncate">
-                            {c.investigatingOfficer}
-                          </span>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-2">
+                        <ShieldCheck size={14} className="text-indigo-400 shrink-0" />
+                        <span className="text-xs text-slate-200 font-semibold truncate">
+                          Detective Inspector David Khumalo
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-emerald-300 block pt-1">Automatically assigned: one detective is registered at this station.</span>
                     </div>
 
                     {/* Diary & Exhibit badges */}
@@ -1087,19 +1072,6 @@ export const OfficerDetectiveBranchView: React.FC<OfficerDetectiveBranchViewProp
                 Close Docket
               </button>
 
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAllocatingCase(selectedCase);
-                    setSelectedDetectiveId(detectives[0]?.id || '');
-                  }}
-                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-sm"
-                >
-                  <UserCheck size={14} />
-                  <span>Allocate / Reassign IO</span>
-                </button>
-              </div>
             </div>
 
           </div>

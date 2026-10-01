@@ -6,10 +6,10 @@ const prisma = new PrismaClient();
 const demoPassword = 'DocketSecure2026!';
 
 const users = [
-  { email: 'thandi.molefe@example.com', personnelNumber: null, fullName: 'Thandi Molefe', rank: null, station: 'SAPS Sandton Police Station', division: 'Public Portal', phoneNumber: '+27 82 555 0101', role: UserRole.COMPLAINANT },
-  { email: 's.ndlovu@police.sfen.gov', personnelNumber: 'POL-10824', fullName: 'Sarah Ndlovu', rank: 'Constable', station: 'SAPS Sandton Police Station', division: 'Community Service Centre', phoneNumber: '+27 11 884 1000', role: UserRole.CSC_OFFICER },
-  { email: 'd.khumalo@cid.sfen.gov', personnelNumber: 'POL-20491', fullName: 'David Khumalo', rank: 'Detective Inspector', station: 'SAPS Sandton Police Station', division: 'Commercial Crime Section', phoneNumber: '+27 11 884 1004', role: UserRole.DETECTIVE },
-  { email: 'e.vance@command.sfen.gov', personnelNumber: 'POL-30912', fullName: 'Elena Vance', rank: 'Senior Superintendent', station: 'SAPS Sandton Police Station', division: 'Station Command', phoneNumber: '+27 11 884 1005', role: UserRole.COMMANDER },
+  { email: 'thandi.molefe@example.com', nationalId: '9001015009087', personnelNumber: null, fullName: 'Thandi Molefe', rank: null, station: 'SAPS Berea Police Station', division: 'Public Portal', phoneNumber: '+27 82 555 0101', role: UserRole.COMPLAINANT },
+  { email: 's.ndlovu@police.sfen.gov', personnelNumber: 'POL-10824', fullName: 'Sarah Ndlovu', rank: 'Constable', station: 'SAPS Berea Police Station', division: 'Community Service Centre', phoneNumber: '+27 11 884 1000', role: UserRole.CSC_OFFICER },
+  { email: 'd.khumalo@cid.sfen.gov', personnelNumber: 'POL-20491', fullName: 'David Khumalo', rank: 'Detective Inspector', station: 'SAPS Berea Police Station', division: 'Commercial Crime Section', phoneNumber: '+27 11 884 1004', role: UserRole.DETECTIVE },
+  { email: 'e.vance@command.sfen.gov', personnelNumber: 'POL-30912', fullName: 'Elena Vance', rank: 'Senior Superintendent', station: 'SAPS Berea Police Station', division: 'Station Command', phoneNumber: '+27 11 884 1005', role: UserRole.COMMANDER },
   { email: 'm.cole@admin.sfen.gov', personnelNumber: 'POL-40199', fullName: 'Marcus Cole', rank: 'Chief ICT Security Officer', station: 'National Police Directorate', division: 'System Administration', phoneNumber: '+27 11 884 1006', role: UserRole.ADMINISTRATOR },
 ];
 

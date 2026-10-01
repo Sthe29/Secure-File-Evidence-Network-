@@ -358,6 +358,13 @@ export const MyReportsView: React.FC<MyReportsViewProps> = ({
                         <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px]">
                           {att.category}
                         </span>
+                        <button
+                          type="button"
+                          onClick={() => att.dataUrl ? window.open(att.dataUrl, '_blank', 'noopener,noreferrer') : alert('This older attachment only has file details saved. Upload a new copy to preview it.')}
+                          className="px-2 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold cursor-pointer"
+                        >
+                          View
+                        </button>
                       </div>
                     ))}
                   </div>

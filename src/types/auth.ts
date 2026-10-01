@@ -39,6 +39,7 @@ export interface AuthResponse {
   user?: UserProfile;
   token?: string;
   requiresTwoFactor?: boolean;
+  requiresPasswordChange?: boolean;
 }
 
 export interface DemoAccount {
@@ -57,6 +58,7 @@ export type PortalType = 'citizen' | 'official';
 
 export interface CitizenSignUpData {
   fullName: string;
+  nationalId: string;
   phoneNumber: string;
   email: string;
   password: string;
@@ -65,8 +67,7 @@ export interface CitizenSignUpData {
 }
 
 export interface CitizenLoginCredentials {
-  email: string;
-  phoneNumber: string;
+  nationalId: string;
   password: string;
   rememberMe: boolean;
 }

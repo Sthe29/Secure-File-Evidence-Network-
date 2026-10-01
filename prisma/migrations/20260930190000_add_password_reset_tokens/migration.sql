@@ -1,0 +1,2 @@
+-- Password-reset email delivery was removed from this local prototype before
+-- deployment.  This retained no-op migration keeps the history consistent.

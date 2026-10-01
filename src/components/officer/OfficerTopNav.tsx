@@ -131,7 +131,7 @@ export const OfficerTopNav: React.FC<OfficerTopNavProps> = ({
           }`}>
             <Building2 size={13} className="text-blue-600" />
             <span className="font-medium truncate max-w-[170px]">
-              {user.station || 'SAPS Sandton Police Station'}
+              {user.station || 'SAPS Berea Police Station'}
             </span>
           </div>
 

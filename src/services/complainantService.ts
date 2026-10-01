@@ -9,6 +9,7 @@ const STORAGE_KEYS = {
   REPORTS: 'sfen_incident_reports',
   CASES: 'sfen_registered_cases',
   COMPLAINTS: 'sfen_service_complaints',
+  STATION_COMPLAINTS: 'sfen_station_complaints',
   NOTIFICATIONS: 'sfen_complainant_notifications',
   NEXT_RPT_NUM: 'sfen_next_report_number',
   NEXT_CMP_NUM: 'sfen_next_complaint_number'
@@ -245,8 +246,10 @@ export async function submitIncidentReportToApi(input: Omit<IncidentReport, 'id'
     body: JSON.stringify({
       incidentType: input.incidentType, incidentDate: input.incidentDate, incidentTime: input.incidentTime,
       address: input.location.address, suburb: input.location.suburb, city: input.location.city, province: input.location.province,
+      latitude: input.location.latitude, longitude: input.location.longitude,
       preferredStation: input.location.preferredStation, description: input.description,
-      involvedParties: input.involvedParties, attachments: input.attachments
+      involvedParties: input.involvedParties, attachments: input.attachments,
+      requiresImmediateAttention: Boolean(input.requiresImmediateAttention)
     })
   });
   const data = await response.json() as any;
@@ -256,7 +259,7 @@ export async function submitIncidentReportToApi(input: Omit<IncidentReport, 'id'
     complainantName: input.complainantName, complainantPhone: input.complainantPhone, complainantEmail: input.complainantEmail,
     incidentType: data.incidentType, incidentDate: data.incidentDate.slice(0, 10), incidentTime: data.incidentTime || '',
     location: input.location, description: data.description, involvedParties: data.involvedParties || {}, attachments: data.attachments || [],
-    status: 'Awaiting Review', submittedAt: data.createdAt, policeStation: input.policeStation
+    status: 'Awaiting Review', requiresImmediateAttention: Boolean(data.requiresImmediateAttention), submittedAt: data.createdAt, policeStation: input.policeStation
   };
 }
 
@@ -271,7 +274,13 @@ export async function getIncidentReportsFromApi(token: string, citizen: { id: st
     location: { address: data.address, suburb: data.suburb, city: data.city, province: data.province, preferredStation: data.preferredStation || 'Police Station' },
     description: data.description, involvedParties: data.involvedParties || {}, attachments: data.attachments || [],
     status: data.status === 'REGISTERED_TO_CASE' ? 'Registered to Case' : data.status === 'UNDER_STATION_REVIEW' ? 'Under Station Review' : data.status === 'ADDITIONAL_INFO_REQUIRED' ? 'Additional Info Required' : 'Awaiting Review',
-    submittedAt: data.createdAt, policeStation: data.preferredStation || 'Police Station'
+    requiresImmediateAttention: Boolean(data.requiresImmediateAttention),
+    submittedAt: data.createdAt, policeStation: data.preferredStation || 'Police Station',
+    linkedCaseNumber: data.case?.caseNumber,
+    detectiveReceipt: data.case?.transfers?.[0]?.acknowledgedAt ? {
+      detectiveName: data.case.transfers[0].recipientName,
+      acknowledgedAt: data.case.transfers[0].acknowledgedAt
+    } : undefined
   }));
 }
 
@@ -311,6 +320,27 @@ export function submitServiceComplaint(
   const updated = [newComplaint, ...allComplaints];
   saveToStorage(STORAGE_KEYS.COMPLAINTS, updated);
 
+  // The commander workspace has its own station queue. Keep a matching record
+  // there so that a complaint lodged by a citizen can be handled by the station.
+  const stationComplaints = loadFromStorage<Record<string, unknown>[]>(STORAGE_KEYS.STATION_COMPLAINTS, []);
+  if (!stationComplaints.some((complaint) => complaint.id === newComplaint.id || complaint.referenceNumber === newComplaint.referenceNumber)) {
+    stationComplaints.unshift({
+      id: newComplaint.id,
+      referenceNumber: newComplaint.referenceNumber,
+      complainantName: newComplaint.complainantName || 'Registered complainant',
+      complainantPhone: newComplaint.complainantPhone || 'Not provided',
+      complainantEmail: newComplaint.complainantEmail,
+      category: newComplaint.category,
+      linkedCaseNumber: newComplaint.linkedReference,
+      policeStation: newComplaint.policeStation,
+      dateSubmitted: newComplaint.submittedAt,
+      details: newComplaint.details,
+      desiredResolution: newComplaint.desiredResolution,
+      status: 'Pending Review'
+    });
+    saveToStorage(STORAGE_KEYS.STATION_COMPLAINTS, stationComplaints);
+  }
+
   addNotification({
     userId: payload.userId,
     type: 'complaint',
@@ -321,6 +351,51 @@ export function submitServiceComplaint(
   });
 
   return newComplaint;
+}
+
+/** Mirrors a station commander's response back to the complainant portal. */
+export function applyCommanderComplaintUpdate(params: {
+  complaintId: string;
+  referenceNumber: string;
+  status: 'Pending Review' | 'Under Investigation' | 'Action Taken' | 'Resolved';
+  commanderName: string;
+  commanderRank: string;
+  commanderNotes: string;
+  outcomeResponse: string;
+}): boolean {
+  const complaints = loadFromStorage<ServiceComplaint[]>(STORAGE_KEYS.COMPLAINTS, SEED_COMPLAINTS);
+  const index = complaints.findIndex((complaint) =>
+    complaint.id === params.complaintId || complaint.referenceNumber === params.referenceNumber
+  );
+  if (index === -1) return false;
+
+  const statusMap: Record<typeof params.status, ServiceComplaint['status']> = {
+    'Pending Review': 'Pending Review',
+    'Under Investigation': 'Investigation Active',
+    'Action Taken': 'Resolution Issued',
+    'Resolved': 'Resolution Issued'
+  };
+  const response = params.outcomeResponse || params.commanderNotes;
+  const assignedOfficer = `${params.commanderRank} ${params.commanderName}`;
+  const updatedComplaint: ServiceComplaint = {
+    ...complaints[index],
+    status: statusMap[params.status],
+    assignedOfficer,
+    resolutionFeedback: response
+  };
+  complaints[index] = updatedComplaint;
+  saveToStorage(STORAGE_KEYS.COMPLAINTS, complaints);
+
+  addNotification({
+    userId: updatedComplaint.userId,
+    type: 'complaint',
+    title: `Complaint Updated: ${updatedComplaint.referenceNumber}`,
+    message: `${assignedOfficer} updated your complaint to ${updatedComplaint.status}.${response ? ` ${response}` : ''}`,
+    read: false,
+    linkedId: updatedComplaint.id,
+    linkedTab: 'complaints'
+  });
+  return true;
 }
 
 // Notifications Service
@@ -352,106 +427,3 @@ export function markAllNotificationsAsRead(userId?: string): void {
   saveToStorage(STORAGE_KEYS.NOTIFICATIONS, updated);
 }
 
-/**
- * Simulator function:
- * Allows the user or reviewer to simulate an authorized police officer reviewing an online report,
- * approving it, and officially registering it as a case docket with an official CAS number.
- * This demonstrates: "When that happens, the resulting official case should automatically be linked
- * to the complainant's account and become visible under My Cases."
- */
-export function simulateRegisterCaseFromReport(reportId: string): { success: boolean; caseNumber?: string; message: string } {
-  const reports = loadFromStorage<IncidentReport[]>(STORAGE_KEYS.REPORTS, SEED_REPORTS);
-  const reportIndex = reports.findIndex((r) => r.id === reportId);
-  
-  if (reportIndex === -1) {
-    return { success: false, message: 'Report not found.' };
-  }
-
-  const report = reports[reportIndex];
-  if (report.status === 'Registered to Case') {
-    return { success: false, message: `Report is already officially registered as ${report.linkedCaseNumber}.` };
-  }
-
-  // Generate Official CAS Number
-  const randomCasNumber = `CAS ${Math.floor(100 + Math.random() * 899)}/09/2026`;
-
-  // Update Report Status
-  report.status = 'Registered to Case';
-  report.linkedCaseNumber = randomCasNumber;
-  report.stationNotes = `Report reviewed by CSC Sergeant. Officially registered into National Crime Administration System under ${randomCasNumber}. Detective assigned.`;
-  reports[reportIndex] = report;
-  saveToStorage(STORAGE_KEYS.REPORTS, reports);
-
-  // Create Corresponding Registered Case
-  const cases = loadFromStorage<RegisteredCase[]>(STORAGE_KEYS.CASES, SEED_CASES);
-  const newCase: RegisteredCase = {
-    id: `cas_${Date.now()}`,
-    caseNumber: randomCasNumber,
-    reportReference: report.referenceNumber,
-    userId: report.userId,
-    incidentType: report.incidentType,
-    policeStation: report.policeStation,
-    investigatingOfficer: 'Det. Constable S. Mthembu',
-    officerRank: 'Detective Constable',
-    dateRegistered: new Date().toISOString().split('T')[0],
-    currentStatus: 'Case Registered',
-    progressStage: 2, // Officer assigned
-    lastUpdateDate: new Date().toISOString().split('T')[0],
-    lastUpdateSummary: `Official case docket opened from online report ${report.referenceNumber}. Primary docket created and dispatched to Detective Branch.`,
-    timeline: [
-      {
-        title: 'Online Report Approved & Case Registered',
-        date: new Date().toISOString().split('T')[0],
-        description: `Community Service Centre reviewed online report ${report.referenceNumber} and created official police case docket ${randomCasNumber}.`,
-        completed: true,
-        current: false
-      },
-      {
-        title: 'Investigating Detective Assigned',
-        date: new Date().toISOString().split('T')[0],
-        description: 'Assigned to Detective Constable S. Mthembu for preliminary complainant interview.',
-        completed: true,
-        current: true
-      },
-      {
-        title: 'Evidence Verification & Witness Statements',
-        date: 'Scheduled',
-        description: 'Collection of sworn affidavits, forensics, and review of submitted attachments.',
-        completed: false,
-        current: false
-      },
-      {
-        title: 'Prosecution & Docket Decision',
-        date: 'Pending',
-        description: 'Submission to Senior Public Prosecutor (SPP).',
-        completed: false,
-        current: false
-      },
-      {
-        title: 'Case Conclusion',
-        date: 'Pending',
-        description: 'Final court verdict or docket closure.',
-        completed: false,
-        current: false
-      }
-    ]
-  };
-
-  saveToStorage(STORAGE_KEYS.CASES, [newCase, ...cases]);
-
-  // Add Notification for Complainant
-  addNotification({
-    userId: report.userId,
-    type: 'case',
-    title: `Official Case Registered: ${randomCasNumber}`,
-    message: `Your online report ${report.referenceNumber} has been verified and registered as Official Case Docket ${randomCasNumber} at ${report.policeStation}. Now visible in My Cases.`,
-    read: false,
-    linkedTab: 'my-cases'
-  });
-
-  return {
-    success: true,
-    caseNumber: randomCasNumber,
-    message: `Report ${report.referenceNumber} has been officially registered as Case Docket ${randomCasNumber}!`
-  };
-}

@@ -45,7 +45,7 @@ export const CommanderDetectivesAndComplaintsView: React.FC<CommanderDetectivesA
             Personnel & Grievances Oversight
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Supervise CID detective caseload allocations alongside citizen service delivery complaints
+            Monitor the station police officer and assigned detective alongside citizen service delivery complaints
           </p>
         </div>
 
@@ -62,11 +62,11 @@ export const CommanderDetectivesAndComplaintsView: React.FC<CommanderDetectivesA
             }`}
           >
             <Users size={15} />
-            <span>Detectives</span>
+            <span>Station Personnel</span>
             <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${
               subTab === 'detectives' ? 'bg-black/20 text-white' : 'bg-slate-800 text-slate-400'
             }`}>
-              {detectivesWorkload.length}
+              {detectivesWorkload.length + 1}
             </span>
           </button>
 

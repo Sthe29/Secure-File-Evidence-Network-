@@ -16,6 +16,7 @@ import {
   CommanderNotification
 } from '../types/commander';
 import { detectiveService } from './detectiveService';
+import { applyCommanderComplaintUpdate } from './complainantService';
 
 const STORAGE_KEYS = {
   CASES: 'sfen_detective_dockets',
@@ -61,7 +62,7 @@ function generateSecurityHash(caseNum: string, action: string, timestamp: string
   return `SHA256:${Math.abs(hash).toString(16).padStart(8, '0').toUpperCase()}cmd89${Date.now().toString(16)}`;
 }
 
-// 4 Authorised Detectives at SAPS Sandton Police Station
+// This SFEN demonstration station has one assigned investigating detective.
 export const AUTHORISED_STATION_DETECTIVES: AuthorisedStationDetective[] = [
   {
     id: 'usr_pol_20491',
@@ -70,45 +71,9 @@ export const AUTHORISED_STATION_DETECTIVES: AuthorisedStationDetective[] = [
     rank: 'Detective Inspector',
     email: 'd.khumalo@cid.sfen.gov',
     phone: '011 555 4920',
-    station: 'SAPS Sandton Police Station',
+    station: 'SAPS Berea Police Station',
     division: 'Commercial Crime Section - Specialist Desk',
     specialization: 'Cybercrime, Banking Phishing & Electronic Fraud',
-    status: 'ACTIVE'
-  },
-  {
-    id: 'usr_pol_20188',
-    personnelNumber: 'POL-20188',
-    fullName: 'Sipho Sithole',
-    rank: 'Detective Captain',
-    email: 's.sithole@cid.sfen.gov',
-    phone: '011 555 4921',
-    station: 'SAPS Sandton Police Station',
-    division: 'Serious & Violent Crimes Directorate',
-    specialization: 'Armed Robbery, Hijacking & Gang Activity',
-    status: 'ACTIVE'
-  },
-  {
-    id: 'usr_pol_21503',
-    personnelNumber: 'POL-21503',
-    fullName: 'Lerato Mokoena',
-    rank: 'Detective Sergeant',
-    email: 'l.mokoena@cid.sfen.gov',
-    phone: '011 555 4922',
-    station: 'SAPS Sandton Police Station',
-    division: 'Family Violence, Child Protection & Sexual Offences (FCS)',
-    specialization: 'Gender-Based Violence, Vulnerable Victims & Extortion',
-    status: 'ACTIVE'
-  },
-  {
-    id: 'usr_pol_19842',
-    personnelNumber: 'POL-19842',
-    fullName: 'Johan Bekker',
-    rank: 'Detective Warrant Officer',
-    email: 'j.bekker@cid.sfen.gov',
-    phone: '011 555 4923',
-    station: 'SAPS Sandton Police Station',
-    division: 'General Crime Investigation Desk',
-    specialization: 'Residential Burglary, Vehicle Theft & Property Syndicates',
     status: 'ACTIVE'
   }
 ];
@@ -140,7 +105,7 @@ const SEED_COMPLAINTS: StationComplaintRecord[] = [
     complainantEmail: 'thandi.molefe@gmail.com',
     category: 'Investigation Delay / Lack of Updates',
     linkedCaseNumber: 'CAS 342/08/2026',
-    policeStation: 'SAPS Sandton Police Station',
+    policeStation: 'SAPS Berea Police Station',
     dateSubmitted: '2026-09-08',
     details: 'I lodged my fraud complaint 2 weeks ago and had not received an update on whether the bank subpoena had been signed by the magistrate.',
     desiredResolution: 'Formal status briefing on whether the stolen funds can be frozen in the destination clearing account.',
@@ -160,7 +125,7 @@ const SEED_COMPLAINTS: StationComplaintRecord[] = [
     complainantEmail: 'm.khuzwayo@netpost.co.za',
     category: 'Station Frontline Service Delivery',
     linkedCaseNumber: 'CAS 512/09/2026',
-    policeStation: 'SAPS Sandton Police Station',
+    policeStation: 'SAPS Berea Police Station',
     dateSubmitted: '2026-09-21',
     details: 'At the Community Service Centre, wait time exceeded 90 minutes before statement recording, and the initial case registration receipt did not immediately indicate the assigned investigating officer.',
     desiredResolution: 'Immediate allocation of investigating officer and inspection of CSC counter turnaround times.',
@@ -234,7 +199,7 @@ export const commanderService = {
         reportReference: 'SFEN-RPT-000142',
         incidentType: 'Robbery / Armed Robbery',
         offenceSubcategory: 'Aggravated Commercial Robbery & Firearms Violation',
-        policeStation: 'SAPS Sandton Police Station',
+        policeStation: 'SAPS Berea Police Station',
         dateReported: '2026-09-21',
         incidentDate: '2026-09-21',
         incidentTime: '14:20',
@@ -897,6 +862,16 @@ export const commanderService = {
 
     complaints[index] = updatedComplaint;
     safeStorageSet(STORAGE_KEYS.COMPLAINTS, complaints);
+
+    applyCommanderComplaintUpdate({
+      complaintId: updatedComplaint.id,
+      referenceNumber: updatedComplaint.referenceNumber,
+      status: updatedComplaint.status,
+      commanderName: params.commander.fullName,
+      commanderRank: params.commander.rank,
+      commanderNotes: params.commanderNotes,
+      outcomeResponse: params.outcomeResponse
+    });
 
     return {
       success: true,

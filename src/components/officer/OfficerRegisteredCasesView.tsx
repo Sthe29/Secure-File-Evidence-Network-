@@ -88,7 +88,7 @@ export const OfficerRegisteredCasesView: React.FC<OfficerRegisteredCasesViewProp
             Registered Crime Cases
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Official police CAS dockets registered through {officer.station || 'SAPS Sandton Police Station'} • Frontline crime registry
+            Official police CAS dockets registered through {officer.station || 'SAPS Berea Police Station'} • Frontline crime registry
           </p>
         </div>
 

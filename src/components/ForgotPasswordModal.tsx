@@ -5,34 +5,49 @@ interface ForgotPasswordModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialIdentifier?: string;
+  audience?: 'citizen' | 'official';
 }
 
 export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
   isOpen,
   onClose,
-  initialIdentifier = ''
+  initialIdentifier = '',
+  audience = 'citizen'
 }) => {
-  const [identifier, setIdentifier] = useState(initialIdentifier);
+  const [email, setEmail] = useState(initialIdentifier.includes('@') ? initialIdentifier : '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'email' | 'commander'>('email');
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!identifier.trim()) return;
+    if (!email.trim()) return;
 
     setIsSubmitting(true);
-    setTimeout(() => {
+    setErrorMessage(null);
+    try {
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const payload = await response.json() as { message?: string };
+      if (!response.ok) throw new Error(payload.message || 'Unable to submit your reset request.');
       setIsSubmitting(false);
       setIsSubmitted(true);
-    }, 900);
+    } catch (error) {
+      setIsSubmitting(false);
+      setErrorMessage(error instanceof Error ? error.message : 'Unable to submit your reset request.');
+    }
   };
 
   const handleReset = () => {
     setIsSubmitted(false);
-    setIdentifier('');
+    setErrorMessage(null);
+    setEmail('');
     onClose();
   };
 
@@ -82,16 +97,16 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
               <CheckCircle2 size={22} className="text-emerald-400 shrink-0 mt-0.5" />
               <div className="text-xs space-y-1">
                 <p className="font-semibold text-emerald-300 text-sm">
-                  Recovery Dispatch Initiated
+                  Password Reset Request Received
                 </p>
                 <p className="text-slate-300 leading-relaxed">
-                  If the identifier <strong className="text-white font-mono">{identifier}</strong> matches an active officer record in the SFEN database, a one-time cryptographic reset token has been dispatched to your official police email.
+                  The reset request for <strong className="text-white font-mono">{email}</strong> has been recorded securely. Password-reset email delivery will become active when the Gmail integration is configured.
                 </p>
               </div>
             </div>
 
             <div className="text-xs text-slate-400 bg-slate-950/60 p-3.5 rounded-lg border border-slate-800 leading-relaxed">
-              <span className="font-semibold text-slate-300">Important Note:</span> For security auditing, reset tokens expire in <span className="text-amber-300">15 minutes</span>. If you are operating on a frontline terminal without email access, request authorization from your Docket Commander.
+              <span className="font-semibold text-slate-300">Important Note:</span> When email delivery is enabled, reset links will expire after 15 minutes.
             </div>
 
             <div className="pt-2 flex justify-end">
@@ -107,7 +122,8 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
           </div>
         ) : (
           <div className="space-y-5">
-            {/* Tabs for Recovery Mode */}
+            {/* Officials have a second support path. Citizens use self-service recovery only. */}
+            {audience === 'official' && (
             <div className="flex rounded-lg bg-slate-950 p-1 border border-slate-800 text-xs">
               <button
                 type="button"
@@ -134,16 +150,23 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
                 Docket Commander Protocol
               </button>
             </div>
+            )}
 
-            {activeTab === 'email' ? (
+            {audience === 'citizen' || activeTab === 'email' ? (
               <form onSubmit={handleSubmit} className="space-y-4">
                 <p className="text-xs text-slate-300 leading-relaxed">
-                  Enter your registered Email address, mobile telephone number, or Police Personnel Number (e.g., <span className="font-mono text-blue-300">POL-20491</span>). A one-time verification link will be routed to your authorized contact.
+                  Enter the email address registered to your {audience === 'citizen' ? 'citizen' : 'official'} SFEN account. We will tell you if no account is registered with that email address.
                 </p>
+
+                {errorMessage && (
+                  <p role="alert" className="text-xs text-red-300 border border-red-500/40 bg-red-950/30 px-3 py-2">
+                    {errorMessage}
+                  </p>
+                )}
 
                 <div className="space-y-1.5">
                   <label htmlFor="recovery-identifier" className="text-xs font-semibold text-slate-200 block">
-                    Email, Mobile Phone Number, or Personnel ID
+                    Registered Email Address
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -151,11 +174,12 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
                     </div>
                     <input
                       id="recovery-identifier"
-                      type="text"
+                      type="email"
                       required
-                      value={identifier}
-                      onChange={(e) => setIdentifier(e.target.value)}
-                      placeholder="e.g. you@email.com, 082 123 4567, or POL-10824"
+                      autoComplete="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
                       className="w-full pl-10 pr-3.5 py-2.5 bg-slate-950/80 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-mono"
                     />
                   </div>
@@ -172,17 +196,17 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
                   <button
                     id="btn-submit-recovery"
                     type="submit"
-                    disabled={isSubmitting || !identifier.trim()}
+                    disabled={isSubmitting || !email.trim()}
                     className="px-5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-all flex items-center gap-2 shadow-sm"
                   >
                     {isSubmitting ? (
                       <>
                         <Loader2 size={14} className="animate-spin" />
-                        Verifying Officer...
+                        Submitting Request...
                       </>
                     ) : (
                       <>
-                        Send Recovery Token
+                        Request Password Reset
                         <ArrowRight size={14} />
                       </>
                     )}

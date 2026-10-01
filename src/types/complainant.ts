@@ -15,7 +15,8 @@ export type ReportStatus =
   | 'Under Station Review'
   | 'Officer Assigned'
   | 'Registered to Case'
-  | 'Additional Info Required';
+  | 'Additional Info Required'
+  | 'Archived';
 
 export interface IncidentLocation {
   address: string;
@@ -60,6 +61,8 @@ export interface AttachedFile {
   type: string;
   uploadedAt: string;
   category: 'Photo' | 'Document' | 'Receipt' | 'Audio/Video' | 'Other';
+  /** Stored with new report uploads so authorised users can preview the original file. */
+  dataUrl?: string;
 }
 
 export interface IncidentReport {
@@ -77,10 +80,15 @@ export interface IncidentReport {
   involvedParties: InvolvedParties;
   attachments: AttachedFile[];
   status: ReportStatus;
+  requiresImmediateAttention?: boolean;
   submittedAt: string;
   policeStation: string;
   stationNotes?: string;
   linkedCaseNumber?: string; // Generated once police register official case
+  detectiveReceipt?: {
+    detectiveName: string;
+    acknowledgedAt: string;
+  };
 }
 
 export interface CaseTimelineEvent {
@@ -105,6 +113,15 @@ export interface RegisteredCase {
   progressStage: number; // 1 to 5
   lastUpdateDate: string;
   lastUpdateSummary: string;
+  formalStatement?: string;
+  evidenceItems?: Array<{
+    name: string;
+    type: string;
+    size: number;
+    dataUrl?: string;
+  }>;
+  attachments?: AttachedFile[];
+  evidenceIntakeNotes?: string;
   nextCourtDate?: string;
   timeline: CaseTimelineEvent[];
 }
@@ -126,6 +143,10 @@ export interface ServiceComplaint {
   id: string;
   referenceNumber: string; // e.g. SFEN-CMP-0042
   userId: string;
+  // Kept with the complaint so the station commander can contact the complainant.
+  complainantName?: string;
+  complainantPhone?: string;
+  complainantEmail?: string;
   category: ComplaintCategory;
   policeStation: string;
   linkedReference?: string; // Case or Report number

@@ -38,11 +38,7 @@ import { GoogleMapsWrapper } from '../maps/GoogleMapsWrapper';
 import { IncidentLocationPickerMap } from '../maps/IncidentLocationPickerMap';
 import { StationLocatorModal } from './StationLocatorModal';
 import { StationVerificationPassModal } from './StationVerificationPassModal';
-import { 
-  POLICE_STATIONS as SAPS_STATIONS, 
-  PoliceStation,
-  findNearestPoliceStation 
-} from '../../services/policeStationService';
+import { useTheme } from '../../context/ThemeContext';
 
 interface ReportIncidentFormProps {
   citizen: CitizenProfile;
@@ -71,41 +67,52 @@ const PROVINCES = [
   'Northern Cape'
 ];
 
-const POLICE_STATIONS = [
-  'Central Precinct (Sector 4)',
-  'Sandton Police Station',
-  'Johannesburg Central Station',
-  'Cape Town Central SAPS',
-  'Durban Central SAPS',
-  'Pretoria Central SAPS',
-  'Randburg Police Station',
-  'Midrand SAPS',
-  'Other Nearest Police Station'
-];
+function formatLocalDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function formatLocalTime(date: Date): string {
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
+
+const REPORT_STEPS = [
+  { number: 1, label: 'Incident details' },
+  { number: 2, label: 'Location' },
+  { number: 3, label: 'People involved' },
+  { number: 4, label: 'Attachments' },
+  { number: 5, label: 'Review & submit' }
+] as const;
 
 export const ReportIncidentForm: React.FC<ReportIncidentFormProps> = ({
   citizen,
   onReportSubmitted,
   onNavigate
 }) => {
+  const { isDark } = useTheme();
   // Steps: 1: Incident, 2: Location, 3: Narrative & People, 4: Files, 5: Review, 6: Success
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
 
   // Form State
   const [incidentType, setIncidentType] = useState<IncidentCategory>('Theft / Burglary');
-  const [incidentDate, setIncidentDate] = useState(new Date().toISOString().split('T')[0]);
-  const [incidentTime, setIncidentTime] = useState('12:00');
+  const [incidentDate, setIncidentDate] = useState(() => formatLocalDate(new Date()));
+  const [incidentTime, setIncidentTime] = useState(() => formatLocalTime(new Date()));
+  const [requiresImmediateAttention, setRequiresImmediateAttention] = useState(false);
   
   // Location
   const [location, setLocation] = useState<IncidentLocation>({
     address: '',
     suburb: '',
-    city: 'Johannesburg',
-    province: 'Gauteng',
-    preferredStation: 'SAPS Sandton (Central Precinct)',
+    city: 'Durban',
+    province: 'KwaZulu-Natal',
+    preferredStation: 'SAPS Berea Police Station',
     landmark: '',
-    latitude: -26.0827,
-    longitude: 28.0583
+    latitude: -29.8587,
+    longitude: 31.0218
   });
 
   const [showStationModal, setShowStationModal] = useState(false);
@@ -153,18 +160,31 @@ export const ReportIncidentForm: React.FC<ReportIncidentFormProps> = ({
     setAttachments(attachments.filter((a) => a.id !== id));
   };
 
-  const handleSimulateNativeUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSimulateNativeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
+      if (file.size > 15 * 1024 * 1024) {
+        setFormError('Each supporting file must be 15 MB or smaller.');
+        e.target.value = '';
+        return;
+      }
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error('The selected file could not be read.'));
+        reader.readAsDataURL(file);
+      });
       const newAtt: AttachedFile = {
         id: `att_${Date.now()}`,
         name: file.name,
         size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
         type: file.type || 'application/octet-stream',
         uploadedAt: new Date().toISOString(),
-        category: file.type.includes('image') ? 'Photo' : 'Document'
+        category: file.type.startsWith('image/') ? 'Photo' : file.type.startsWith('video/') || file.type.startsWith('audio/') ? 'Audio/Video' : 'Document',
+        dataUrl
       };
       setAttachments([...attachments, newAtt]);
+      e.target.value = '';
     }
   };
 
@@ -195,7 +215,7 @@ export const ReportIncidentForm: React.FC<ReportIncidentFormProps> = ({
         suburb: suburb || 'Central Area',
         city: city || 'Johannesburg',
         province: prev.province || 'Gauteng',
-        preferredStation: prev.preferredStation || 'SAPS Sandton (Central Precinct)'
+        preferredStation: prev.preferredStation || 'SAPS Berea Police Station'
       }));
       return true;
     }
@@ -246,6 +266,7 @@ export const ReportIncidentForm: React.FC<ReportIncidentFormProps> = ({
           description,
           involvedParties,
           attachments,
+          requiresImmediateAttention,
           policeStation: location.preferredStation
         }, sessionToken);
 
@@ -379,13 +400,13 @@ export const ReportIncidentForm: React.FC<ReportIncidentFormProps> = ({
   }
 
   return (
-    <div id="report-incident-container" className="max-w-4xl mx-auto space-y-6 animate-fade-in">
+    <div id="report-incident-container" className="sfen-glass-page max-w-4xl mx-auto space-y-6 animate-fade-in">
       
       {/* Emergency Advisory Notice */}
       <EmergencyNoticeBanner />
 
       {/* Header & Steps */}
-      <div className="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-4">
+      <div className="sfen-glass-panel p-6 rounded-2xl space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
@@ -396,22 +417,41 @@ export const ReportIncidentForm: React.FC<ReportIncidentFormProps> = ({
             </p>
           </div>
 
-          {/* Numbered Progress Indicator */}
-          <div className="flex items-center gap-1.5 self-start sm:self-center">
-            {[1, 2, 3, 4, 5].map((step) => (
-              <div
-                key={step}
-                className={`w-7 h-7 rounded-lg text-xs font-bold flex items-center justify-center transition-all ${
-                  currentStep === step
-                    ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-500/30'
-                    : currentStep > step
-                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                    : 'bg-slate-950 text-slate-500 border border-slate-800'
-                }`}
-              >
-                {currentStep > step ? <Check size={13} className="stroke-[3]" /> : step}
-              </div>
-            ))}
+          {/* Connected reporting timeline */}
+          <div className="w-full sm:max-w-xl self-start sm:self-center" aria-label={`Report step ${currentStep} of 5`}>
+            <div className="flex items-start">
+              {REPORT_STEPS.map((step, index) => {
+                const isComplete = currentStep > step.number;
+                const isCurrent = currentStep === step.number;
+                return (
+                  <div key={step.number} className="relative flex flex-1 flex-col items-center text-center">
+                    {index < REPORT_STEPS.length - 1 && (
+                      <span
+                        className={`absolute top-4 left-1/2 h-px w-full ${
+                          currentStep > step.number ? 'bg-blue-600' : isDark ? 'bg-slate-700' : 'bg-slate-300'
+                        }`}
+                      />
+                    )}
+                    <span
+                      className={`relative z-10 flex h-8 w-8 items-center justify-center border text-xs font-bold ${
+                        isComplete || isCurrent
+                          ? 'border-blue-600 bg-blue-600 text-white'
+                          : isDark
+                            ? 'border-slate-700 bg-black text-slate-400'
+                            : 'border-slate-300 bg-white text-slate-600'
+                      }`}
+                    >
+                      {isComplete ? <Check size={14} className="stroke-[3]" /> : step.number}
+                    </span>
+                    <span className={`mt-2 hidden text-[10px] font-semibold leading-tight sm:block ${
+                      isCurrent ? 'text-blue-600' : isDark ? 'text-slate-400' : 'text-slate-600'
+                    }`}>
+                      {step.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
@@ -440,26 +480,46 @@ export const ReportIncidentForm: React.FC<ReportIncidentFormProps> = ({
               <label className="text-xs font-semibold text-slate-200 block">
                 Type of Criminal Incident or Occurrence <span className="text-rose-400">*</span>
               </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {INCIDENT_CATEGORIES.map((cat) => (
                   <button
                     key={cat}
                     type="button"
                     onClick={() => setIncidentType(cat)}
-                    className={`p-3 rounded-xl text-left text-xs font-medium border transition-all flex items-center justify-between cursor-pointer ${
+                    aria-pressed={incidentType === cat}
+                    className={`sfen-incident-choice min-h-16 px-4 py-3 rounded-xl text-left text-sm font-bold flex items-center justify-between cursor-pointer ${
                       incidentType === cat
-                        ? 'bg-emerald-600/15 border-emerald-500 text-white shadow-xs'
-                        : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-950'
+                        ? 'is-selected text-white'
+                        : isDark
+                          ? 'text-slate-100'
+                          : 'text-slate-800'
                     }`}
                   >
                     <span>{cat}</span>
                     {incidentType === cat && (
-                      <CheckCircle2 size={15} className="text-emerald-400" />
+                      <CheckCircle2 size={17} className="text-white" />
                     )}
                   </button>
                 ))}
               </div>
             </div>
+
+              <div className="border border-red-500/50 bg-red-950/35 p-4 rounded-xl space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex items-start gap-2.5">
+                    <AlertTriangle size={18} className="text-red-400 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-bold text-red-100">Is this incident ongoing or does someone need immediate police help?</p>
+                      <p className="text-xs text-red-200/80 mt-1">Call 10111 now. An online report is not an emergency dispatch service.</p>
+                    </div>
+                  </div>
+                  <a href="tel:10111" className="shrink-0 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-md text-center">Call 10111</a>
+                </div>
+                <label className="flex items-start gap-2.5 text-xs text-slate-200 cursor-pointer">
+                  <input type="checkbox" checked={requiresImmediateAttention} onChange={(e) => setRequiresImmediateAttention(e.target.checked)} className="mt-0.5 h-4 w-4 accent-red-600" />
+                  <span><strong className="text-white">Mark this report for urgent station attention.</strong> Your location and report will be flagged in SFEN for priority review after submission.</span>
+                </label>
+              </div>
 
             {/* Date and Time */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
@@ -473,7 +533,7 @@ export const ReportIncidentForm: React.FC<ReportIncidentFormProps> = ({
                   type="date"
                   required
                   value={incidentDate}
-                  max={new Date().toISOString().split('T')[0]}
+                  max={formatLocalDate(new Date())}
                   onChange={(e) => setIncidentDate(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                 />
@@ -517,15 +577,8 @@ export const ReportIncidentForm: React.FC<ReportIncidentFormProps> = ({
             <GoogleMapsWrapper>
               <IncidentLocationPickerMap
                 location={location}
-                onLocationChange={(updated) => setLocation(updated)}
-                onNearestStationFound={(station) => {
-                  setLocation((prev) => {
-                    if (!prev.preferredStation || prev.preferredStation === 'Central Precinct (Sector 4)') {
-                      return { ...prev, preferredStation: station.name };
-                    }
-                    return prev;
-                  });
-                }}
+                onLocationChange={(updated) => setLocation({ ...updated, preferredStation: 'SAPS Berea Police Station' })}
+                onNearestStationFound={() => undefined}
               />
             </GoogleMapsWrapper>
 
@@ -619,26 +672,17 @@ export const ReportIncidentForm: React.FC<ReportIncidentFormProps> = ({
                     />
                   </div>
 
-                  {/* Preferred Police Precinct */}
+                  {/* Receiving station is fixed for this SFEN deployment. */}
                   <div className="space-y-1.5 pt-2">
-                    <label htmlFor="loc-station" className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                    <p className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
                       <Building2 size={14} className="text-emerald-400" />
                       <span>Assigned Police Station to Receive & Review Report <span className="text-rose-400">*</span></span>
-                    </label>
-                    <select
-                      id="loc-station"
-                      value={location.preferredStation}
-                      onChange={(e) => setLocation({ ...location, preferredStation: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
-                    >
-                      {SAPS_STATIONS.map((st) => (
-                        <option key={st.id} value={st.name}>
-                          {st.name} ({st.suburb}, {st.city})
-                        </option>
-                      ))}
-                    </select>
+                    </p>
+                    <div id="loc-station" className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white">
+                      SAPS Berea Police Station
+                    </div>
                     <p className="text-[11px] text-slate-400">
-                      The designated station Community Service Centre (CSC) officer will review this submission to register the official docket.
+                      Your report will be sent directly to the Berea Community Service Centre (CSC) for review.
                     </p>
                   </div>
                 </div>

@@ -104,7 +104,7 @@ export const DetectiveProfileView: React.FC<DetectiveProfileViewProps> = ({ user
                 Assigned Station
               </span>
               <p className="font-bold text-white">
-                {user.station || 'SAPS Sandton Police Station'}
+                {user.station || 'SAPS Berea Police Station'}
               </p>
             </div>
 

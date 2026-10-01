@@ -140,6 +140,12 @@ export const DetectiveCasesAndDirectivesView: React.FC<DetectiveCasesAndDirectiv
                         </span>
                       )}
 
+                      {c.initialResponseDueAt && (
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${c.responseEscalatedAt ? 'bg-red-500/20 text-red-300 border-red-500/40' : new Date(c.initialResponseDueAt).getTime() - Date.now() < 24 * 60 * 60 * 1000 ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'}`}>
+                          {c.responseEscalatedAt ? 'Escalated to Commander' : `First response due ${new Date(c.initialResponseDueAt).toLocaleDateString()}`}
+                        </span>
+                      )}
+
                       {pendingDirectives.length > 0 && (
                         <button
                           type="button"
@@ -151,9 +157,13 @@ export const DetectiveCasesAndDirectivesView: React.FC<DetectiveCasesAndDirectiv
                       )}
 
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        c.priorityLevel === 'Critical' || c.priorityLevel === 'Urgent'
-                          ? 'bg-red-500/20 text-red-300 border border-red-500/30'
-                          : 'bg-slate-800 text-slate-400'
+                        c.priorityLevel === 'Critical'
+                          ? 'bg-red-600 text-white border border-red-500'
+                          : c.priorityLevel === 'Urgent'
+                            ? 'bg-red-500/20 text-red-300 border border-red-500/40'
+                            : c.priorityLevel === 'High Priority'
+                              ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                              : 'bg-slate-800/70 text-slate-300 border border-slate-700'
                       }`}>
                         {c.priorityLevel}
                       </span>

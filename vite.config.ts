@@ -12,6 +12,9 @@ export default defineConfig(() => {
       },
     },
     server: {
+      // Temporary remote group-testing tunnel. Remove this allowance when
+      // LocalTunnel testing is finished.
+      allowedHosts: ['.loca.lt', '.trycloudflare.com'],
       proxy: {
         '/api': {
           target: 'http://localhost:3001',

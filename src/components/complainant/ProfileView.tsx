@@ -115,10 +115,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ citizen, onUpdateCitiz
   };
 
   return (
-    <div id="complainant-profile-view" className="space-y-6 max-w-4xl mx-auto animate-fade-in">
+    <div id="complainant-profile-view" className="sfen-glass-page space-y-6 max-w-4xl mx-auto animate-fade-in">
       
       {/* Header - separated by clean line */}
-      <div className={`pb-4 border-b ${isDark ? 'border-white/10' : 'border-black/10'}`}>
+      <div className={`sfen-glass-panel rounded-2xl p-5 border ${isDark ? 'border-white/10' : 'border-black/10'}`}>
         <h2 className={`text-xl sm:text-2xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-black'}`}>
           Account Profile and Security Settings
         </h2>
@@ -128,7 +128,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ citizen, onUpdateCitiz
       </div>
 
       {/* Profile Particulars Form */}
-      <div className={`py-4 border-b space-y-4 ${isDark ? 'border-white/10' : 'border-black/10'}`}>
+      <div className={`sfen-glass-panel rounded-2xl p-5 border space-y-4 ${isDark ? 'border-white/10' : 'border-black/10'}`}>
         <div className="flex items-center gap-2">
           <User size={18} className="text-blue-600" />
           <h3 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-black'}`}>Personal and Contact Details</h3>
@@ -215,7 +215,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ citizen, onUpdateCitiz
       </div>
 
       {/* Change Password Section - separated by clean line */}
-      <div className={`py-4 border-b space-y-4 ${isDark ? 'border-white/10' : 'border-black/10'}`}>
+      <div className={`sfen-glass-panel rounded-2xl p-5 border space-y-4 ${isDark ? 'border-white/10' : 'border-black/10'}`}>
         <div className="flex items-center gap-2">
           <KeyRound size={18} className="text-blue-600" />
           <h3 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-black'}`}>Change Account Password</h3>

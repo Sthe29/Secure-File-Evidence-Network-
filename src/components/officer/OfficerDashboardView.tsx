@@ -52,9 +52,8 @@ export const OfficerDashboardView: React.FC<OfficerDashboardViewProps> = ({
         
         {/* 1. Reports Awaiting Review */}
         <div
-          onClick={() => onNavigate('records')}
-          className={`p-4 rounded-md border transition-colors cursor-pointer group flex flex-col justify-between ${
-            isDark ? 'bg-black border-slate-800 hover:border-blue-600' : 'bg-white border-slate-200 hover:border-blue-600'
+          className={`p-4 rounded-md border flex flex-col justify-between ${
+            isDark ? 'bg-black border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
           <div className="flex items-center justify-between">
@@ -80,9 +79,8 @@ export const OfficerDashboardView: React.FC<OfficerDashboardViewProps> = ({
 
         {/* 2. In Processing */}
         <div
-          onClick={() => onNavigate('records')}
-          className={`p-4 rounded-md border transition-colors cursor-pointer group flex flex-col justify-between ${
-            isDark ? 'bg-black border-slate-800 hover:border-blue-600' : 'bg-white border-slate-200 hover:border-blue-600'
+          className={`p-4 rounded-md border flex flex-col justify-between ${
+            isDark ? 'bg-black border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
           <div className="flex items-center justify-between">
@@ -108,9 +106,8 @@ export const OfficerDashboardView: React.FC<OfficerDashboardViewProps> = ({
 
         {/* 3. Registered Cases */}
         <div
-          onClick={() => onNavigate('records')}
-          className={`p-4 rounded-md border transition-colors cursor-pointer group flex flex-col justify-between ${
-            isDark ? 'bg-black border-slate-800 hover:border-blue-600' : 'bg-white border-slate-200 hover:border-blue-600'
+          className={`p-4 rounded-md border flex flex-col justify-between ${
+            isDark ? 'bg-black border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
           <div className="flex items-center justify-between">
@@ -136,9 +133,8 @@ export const OfficerDashboardView: React.FC<OfficerDashboardViewProps> = ({
 
         {/* 4. Docket Movement */}
         <div
-          onClick={() => onNavigate('docket-movement')}
-          className={`p-4 rounded-md border transition-colors cursor-pointer group flex flex-col justify-between ${
-            isDark ? 'bg-black border-slate-800 hover:border-blue-600' : 'bg-white border-slate-200 hover:border-blue-600'
+          className={`p-4 rounded-md border flex flex-col justify-between ${
+            isDark ? 'bg-black border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
           <div className="flex items-center justify-between">

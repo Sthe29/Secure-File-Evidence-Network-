@@ -37,7 +37,12 @@ export const AdminPage: React.FC<AdminPageProps> = ({ user, onSignOut }) => {
   const [isAddPersonnelOpen, setIsAddPersonnelOpen] = useState(false);
 
   const refreshData = async () => {
-    setUsersList(adminService.getUsers());
+    try {
+      setUsersList(await adminService.getUsersFromApi(currentUserProfile.token));
+    } catch {
+      // Keeps the administrator page usable when the local API is unavailable.
+      setUsersList(adminService.getUsers());
+    }
     setStationData(adminService.getConfiguredStation());
     const localActivity = adminService.getActivityLogs();
     try {
@@ -52,7 +57,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ user, onSignOut }) => {
     void refreshData();
   }, []);
 
-  const handleAddPersonnel = (data: {
+  const handleAddPersonnel = async (data: {
     fullName: string;
     personnelNumber: string;
     email: string;
@@ -61,8 +66,12 @@ export const AdminPage: React.FC<AdminPageProps> = ({ user, onSignOut }) => {
     role: UserRole;
     division?: string;
   }) => {
-    adminService.addPersonnel(data, currentUserProfile);
-    refreshData();
+    const response = await fetch('/api/admin/personnel', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentUserProfile.token}` }, body: JSON.stringify({ ...data, station: stationData.name }) });
+    const payload = await response.json() as { message?: string; temporaryPassword?: string };
+    if (!response.ok || !payload.temporaryPassword) throw new Error(payload.message || 'Could not create the personnel account.');
+    const user = adminService.addPersonnel(data, currentUserProfile);
+    await refreshData();
+    return { user, temporaryPassword: payload.temporaryPassword };
   };
 
   const handleUpdateUser = (id: string, updates: Partial<AdminUserRecord>) => {
@@ -70,9 +79,18 @@ export const AdminPage: React.FC<AdminPageProps> = ({ user, onSignOut }) => {
     refreshData();
   };
 
-  const handleSetUserStatus = (id: string, status: AccountStatus) => {
-    adminService.setUserStatus(id, status, currentUserProfile);
-    refreshData();
+  const handleSetUserStatus = async (id: string, status: AccountStatus) => {
+    const response = await fetch(`/api/admin/users/${id}/status`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${currentUserProfile.token}`
+      },
+      body: JSON.stringify({ status })
+    });
+    const payload = await response.json() as { message?: string };
+    if (!response.ok) throw new Error(payload.message || 'Could not update the account status.');
+    await refreshData();
   };
 
   const handleResetPassword = (id: string) => {
@@ -117,7 +135,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ user, onSignOut }) => {
   return (
     <div 
       id="admin-page-container" 
-      className={`min-h-screen flex flex-col justify-between selection:bg-blue-600 selection:text-white ${
+      className={`sfen-shell sfen-staff-shell min-h-screen flex flex-col justify-between selection:bg-blue-600 selection:text-white ${
         isDark ? 'bg-black text-white' : 'bg-white text-black'
       }`}
     >
@@ -264,7 +282,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ user, onSignOut }) => {
         </div>
 
         {/* Content Area */}
-        <main className="flex-1 min-w-0 py-6 sm:py-8 md:pl-8">
+        <main className={`sfen-content flex-1 min-w-0 py-6 sm:py-8 md:pl-8 ${activeTab === 'dashboard' ? 'sfen-dashboard' : ''}`}>
           {activeTab === 'dashboard' && (
             <AdminDashboardView
               stats={dashboardStats}
@@ -313,7 +331,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ user, onSignOut }) => {
       }`}>
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>
-            {stationData.name || 'SAPS Sandton Police Station'} • Republic of South Africa
+            {stationData.name || 'SAPS Berea Police Station'} • Republic of South Africa
           </span>
           <span className="font-mono">
             System Administrator: {currentUserProfile.rank} {currentUserProfile.fullName} ({currentUserProfile.personnelNumber})

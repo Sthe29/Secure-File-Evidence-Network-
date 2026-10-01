@@ -6,6 +6,404 @@
   }
 }
 
+/* Shared staff-portal theme: the operational dashboards use the same visual
+   system as the client portal, even where older views still contain dark UI
+   utility classes. Restricting these rules to .sfen-staff-shell avoids
+   changing status badges and public-facing incident forms. */
+.sfen-staff-shell {
+  color-scheme: dark;
+}
+
+.light .sfen-staff-shell {
+  color-scheme: light;
+}
+
+.light .sfen-staff-shell [class~="bg-black"],
+.light .sfen-staff-shell [class~="bg-slate-950"],
+.light .sfen-staff-shell [class~="bg-slate-900"],
+.light .sfen-staff-shell [class~="bg-slate-900/80"],
+.light .sfen-staff-shell [class~="bg-slate-900/90"],
+.light .sfen-staff-shell [class~="bg-slate-900/40"] {
+  background-color: #ffffff !important;
+}
+
+.light .sfen-staff-shell [class~="border-slate-800"],
+.light .sfen-staff-shell [class~="border-slate-700"],
+.light .sfen-staff-shell [class~="border-white/10"],
+.light .sfen-staff-shell [class~="border-white/15"],
+.light .sfen-staff-shell [class~="border-white/20"] {
+  border-color: #dbe3ee !important;
+}
+
+.light .sfen-staff-shell [class~="text-white"] {
+  color: #0f172a !important;
+}
+
+.light .sfen-staff-shell [class~="text-slate-200"],
+.light .sfen-staff-shell [class~="text-slate-300"] {
+  color: #334155 !important;
+}
+
+.light .sfen-staff-shell [class~="text-slate-400"],
+.light .sfen-staff-shell [class~="text-slate-500"] {
+  color: #64748b !important;
+}
+
+.light .sfen-staff-shell button:is([class^="bg-blue-"], [class*=" bg-blue-"], [class^="bg-emerald-"], [class*=" bg-emerald-"], [class^="bg-rose-"], [class*=" bg-rose-"]) {
+  color: #ffffff !important;
+}
+
+.light .sfen-staff-shell button[class*="bg-blue-"] [class~="text-white"],
+.light .sfen-staff-shell button[class*="bg-emerald-"] [class~="text-white"],
+.light .sfen-staff-shell button[class*="bg-rose-"] [class~="text-white"] {
+  color: #ffffff !important;
+}
+
+/* Keep contrast for text placed inside coloured workflow/status panels. */
+.light .sfen-staff-shell [class*="bg-blue-"] [class~="text-white"],
+.light .sfen-staff-shell [class*="bg-emerald-"] [class~="text-white"],
+.light .sfen-staff-shell [class*="bg-rose-"] [class~="text-white"],
+.light .sfen-staff-shell [class*="bg-amber-"] [class~="text-white"] {
+  color: #ffffff !important;
+}
+
+.sfen-staff-shell input,
+.sfen-staff-shell select,
+.sfen-staff-shell textarea {
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+/* Native Windows dropdown menus do not inherit the select's dark surface.
+   Set option colours explicitly so every choice remains readable. */
+:is(.sfen-shell, .sfen-staff-shell) select option {
+  background-color: #0f172a;
+  color: #ffffff;
+}
+
+:is(.sfen-shell, .sfen-staff-shell) select option:checked {
+  background-color: #2563eb;
+  color: #ffffff;
+}
+
+.light :is(.sfen-shell, .sfen-staff-shell) select option {
+  background-color: #ffffff;
+  color: #0f172a;
+}
+
+.light :is(.sfen-shell, .sfen-staff-shell) select option:checked {
+  background-color: #dbeafe;
+  color: #0f172a;
+}
+
+/* SFEN interface standard: three colours, plain controls, and line-led content. */
+.sfen-shell {
+  --sfen-blue: #2563eb;
+  --sfen-blue-dark: #1d4ed8;
+}
+
+.sfen-shell *,
+.sfen-shell *::before,
+.sfen-shell *::after {
+  animation: none !important;
+  transition: none !important;
+  background-image: none !important;
+}
+
+/* Only actual blue surfaces force white content. `hover:bg-*` must not alter
+   the normal state of an outlined button. */
+.sfen-shell :is([class^="bg-blue-"], [class*=" bg-blue-"]) {
+  color: #ffffff !important;
+}
+
+.sfen-shell :is([class^="bg-blue-"], [class*=" bg-blue-"]) :is(span, svg, p, strong) {
+  color: #ffffff !important;
+}
+
+/* Client portal: older forms used dark-mode text utilities, so explicitly
+   translate them for the white interface too. */
+.light .sfen-shell :is([class~="text-white"], [class~="text-slate-100"], [class~="text-slate-200"], [class~="text-slate-300"]) {
+  color: #000000 !important;
+}
+
+.light .sfen-shell :is([class~="text-slate-400"], [class~="text-slate-500"], [class~="text-slate-600"], [class~="text-slate-700"]) {
+  color: #334155 !important;
+}
+
+/* Green selection states in the client workflow become SFEN blue. */
+.sfen-shell :is([class^="bg-emerald-"], [class*=" bg-emerald-"]) {
+  background-color: var(--sfen-blue) !important;
+  color: #ffffff !important;
+}
+
+.sfen-shell :is([class^="bg-emerald-"], [class*=" bg-emerald-"]) :is(span, svg, p, strong) {
+  color: #ffffff !important;
+}
+
+.sfen-shell button {
+  border-radius: 2px !important;
+  box-shadow: none !important;
+}
+
+/* A page that is not a dashboard uses horizontal rules instead of floating boxes. */
+.sfen-content:not(.sfen-dashboard) [class*="rounded-2xl"],
+.sfen-content:not(.sfen-dashboard) [class*="rounded-xl"],
+.sfen-content:not(.sfen-dashboard) [class*="rounded-lg"] {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.sfen-content:not(.sfen-dashboard) [class*="shadow-"] {
+  box-shadow: none !important;
+}
+
+.sfen-content:not(.sfen-dashboard) [class*="bg-slate-900"],
+.sfen-content:not(.sfen-dashboard) [class*="bg-slate-950"],
+.sfen-content:not(.sfen-dashboard) [class*="bg-black/"] {
+  background-color: transparent !important;
+}
+
+.sfen-content:not(.sfen-dashboard) [class*="border"] {
+  border-left-color: transparent !important;
+  border-right-color: transparent !important;
+  border-top-color: transparent !important;
+  border-bottom-color: color-mix(in srgb, currentColor 18%, transparent) !important;
+}
+
+/* Flat record grids retain clear boundaries without reverting to card boxes. */
+.sfen-record-grid .sfen-record-row {
+  border-top: 1px solid color-mix(in srgb, currentColor 20%, transparent) !important;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 20%, transparent) !important;
+}
+
+@media (min-width: 768px) {
+  .sfen-record-grid .sfen-record-row:nth-child(odd) {
+    border-right: 1px solid color-mix(in srgb, currentColor 20%, transparent) !important;
+  }
+}
+
+.sfen-shell input,
+.sfen-shell select,
+.sfen-shell textarea {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Forms remain clearly editable even when the surrounding page is flat. */
+.light .sfen-shell input,
+.light .sfen-shell select,
+.light .sfen-shell textarea {
+  background-color: #ffffff !important;
+  border: 1px solid #000000 !important;
+  color: #000000 !important;
+}
+
+.light .sfen-shell input::placeholder,
+.light .sfen-shell textarea::placeholder {
+  color: #475569 !important;
+  opacity: 1;
+}
+
+.light .sfen-shell input:focus,
+.light .sfen-shell select:focus,
+.light .sfen-shell textarea:focus {
+  border-color: var(--sfen-blue) !important;
+  outline: 2px solid var(--sfen-blue);
+  outline-offset: 1px;
+}
+
+/* Used sparingly for high-level portal panels; data-entry surfaces stay solid. */
+.sfen-glass-panel {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background-color: rgb(15 23 42 / 56%) !important;
+  background-image: none !important;
+  border: 1px solid rgb(147 197 253 / 42%) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 26%), 0 18px 42px rgb(0 0 0 / 24%) !important;
+  backdrop-filter: blur(24px) saturate(145%);
+  -webkit-backdrop-filter: blur(24px) saturate(145%);
+}
+
+/* Pressable liquid-glass choices used for the incident classification controls. */
+.sfen-incident-choice {
+  background-color: rgb(15 23 42 / 58%) !important;
+  border: 1px solid rgb(148 163 184 / 52%) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 18%), 0 8px 18px rgb(0 0 0 / 18%) !important;
+  backdrop-filter: blur(18px) saturate(145%);
+  -webkit-backdrop-filter: blur(18px) saturate(145%);
+}
+
+.sfen-incident-choice:hover {
+  border-color: rgb(96 165 250 / 88%) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 28%), 0 10px 20px rgb(0 0 0 / 25%) !important;
+}
+
+.sfen-incident-choice:active {
+  box-shadow: inset 0 2px 8px rgb(0 0 0 / 32%) !important;
+}
+
+.sfen-incident-choice.is-selected {
+  background-color: rgb(37 99 235 / 82%) !important;
+  border-color: rgb(147 197 253 / 95%) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 42%), 0 10px 22px rgb(29 78 216 / 35%) !important;
+}
+
+.light .sfen-incident-choice {
+  background-color: rgb(255 255 255 / 66%) !important;
+  border-color: rgb(148 163 184 / 62%) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 90%), 0 8px 18px rgb(15 23 42 / 12%) !important;
+}
+
+.light .sfen-incident-choice.is-selected {
+  background-color: rgb(37 99 235 / 88%) !important;
+  border-color: rgb(30 64 175 / 85%) !important;
+}
+
+.light .sfen-glass-panel {
+  background-color: rgb(255 255 255 / 58%) !important;
+  background-image: none !important;
+  border-color: rgb(255 255 255 / 78%) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 94%), 0 18px 42px rgb(15 23 42 / 12%) !important;
+}
+
+/* A modal needs privacy and readable contrast: it may look like glass, but
+   the page behind it must never compete with the docket information. */
+.sfen-docket-modal {
+  background-color: rgb(8 18 38 / 96%) !important;
+  border: 1px solid rgb(147 197 253 / 62%) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 20%), 0 28px 80px rgb(0 0 0 / 62%) !important;
+  backdrop-filter: blur(30px) saturate(135%);
+  -webkit-backdrop-filter: blur(30px) saturate(135%);
+}
+
+.light .sfen-docket-modal {
+  background-color: rgb(248 251 255 / 96%) !important;
+  border-color: rgb(96 165 250 / 54%) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 96%), 0 28px 80px rgb(15 23 42 / 24%) !important;
+}
+
+/* Report workspace preview: use glass for sections, but never for input fields. */
+.sfen-glass-page {
+  padding: 1.25rem;
+  background-color: rgb(37 99 235 / 8%);
+  border: 1px solid rgb(37 99 235 / 22%);
+}
+
+.sfen-glass-page > form > div[class*="bg-slate-"] {
+  background-color: rgb(15 23 42 / 56%) !important;
+  background-image: none !important;
+  border: 1px solid rgb(147 197 253 / 42%) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 22%), 0 18px 42px rgb(0 0 0 / 20%) !important;
+  backdrop-filter: blur(24px) saturate(145%);
+  -webkit-backdrop-filter: blur(24px) saturate(145%);
+}
+
+.light .sfen-glass-page {
+  background-color: rgb(37 99 235 / 6%);
+  border-color: rgb(37 99 235 / 24%);
+}
+
+.light .sfen-glass-page > form > div[class*="bg-slate-"] {
+  background-color: rgb(255 255 255 / 58%) !important;
+  border-color: rgb(255 255 255 / 78%) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 94%), 0 18px 42px rgb(15 23 42 / 12%) !important;
+}
+
+/* Cases and records: keep the familiar list structure, but lift panels into glass. */
+.sfen-glass-records {
+  padding: 1.25rem;
+  background-color: rgb(37 99 235 / 8%);
+  border: 1px solid rgb(37 99 235 / 22%);
+}
+
+.sfen-glass-records div[class*="bg-slate-900"] {
+  background-color: rgb(15 23 42 / 56%) !important;
+  background-image: none !important;
+  border-color: rgb(147 197 253 / 42%) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 22%), 0 18px 42px rgb(0 0 0 / 20%) !important;
+  backdrop-filter: blur(24px) saturate(145%);
+  -webkit-backdrop-filter: blur(24px) saturate(145%);
+}
+
+.light .sfen-glass-records {
+  background-color: rgb(37 99 235 / 6%);
+  border-color: rgb(37 99 235 / 24%);
+}
+
+.light .sfen-glass-records div[class*="bg-slate-900"] {
+  background-color: rgb(255 255 255 / 58%) !important;
+  border-color: rgb(255 255 255 / 78%) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 94%), 0 18px 42px rgb(15 23 42 / 12%) !important;
+}
+
+/* Shared SFEN glass language for all portal panels and overlays. Inputs and
+   selects are intentionally excluded so data entry remains clearly visible. */
+.sfen-shell :is(div, section, article)[class*="bg-slate-900"],
+.sfen-shell :is(div, section, article)[class*="bg-slate-950"] {
+  background-color: rgb(15 23 42 / 56%) !important;
+  background-image: none !important;
+  border-color: rgb(147 197 253 / 42%) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 22%), 0 18px 42px rgb(0 0 0 / 20%) !important;
+  backdrop-filter: blur(24px) saturate(145%);
+  -webkit-backdrop-filter: blur(24px) saturate(145%);
+}
+
+.light .sfen-shell :is(div, section, article)[class*="bg-slate-900"],
+.light .sfen-shell :is(div, section, article)[class*="bg-slate-950"] {
+  background-color: rgb(255 255 255 / 58%) !important;
+  border-color: rgb(255 255 255 / 78%) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 94%), 0 18px 42px rgb(15 23 42 / 12%) !important;
+}
+
+/* Every staff role receives a visible glass workspace even when a view was
+   originally built with only divider lines and no card background. */
+.sfen-staff-shell main > div {
+  padding: 1.25rem;
+  background-color: rgb(15 23 42 / 56%);
+  background-image: none !important;
+  border: 1px solid rgb(147 197 253 / 42%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 22%), 0 18px 42px rgb(0 0 0 / 20%);
+  backdrop-filter: blur(24px) saturate(145%);
+  -webkit-backdrop-filter: blur(24px) saturate(145%);
+}
+
+.light .sfen-staff-shell main > div {
+  background-color: rgb(255 255 255 / 58%);
+  border-color: rgb(255 255 255 / 78%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 94%), 0 18px 42px rgb(15 23 42 / 12%);
+}
+
+/* Administrative forms contain personnel and account data. They must remain
+   fully opaque even where the surrounding workspace uses the glass treatment. */
+.sfen-shell .sfen-private-overlay {
+  background-color: rgb(2 6 23 / 88%) !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+.sfen-shell .sfen-private-modal {
+  background-color: #0f172a !important;
+  background-image: none !important;
+  border-color: rgb(71 85 105) !important;
+  box-shadow: 0 28px 80px rgb(0 0 0 / 68%) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.light .sfen-shell .sfen-private-modal {
+  background-color: #ffffff !important;
+  border-color: rgb(148 163 184) !important;
+  box-shadow: 0 28px 80px rgb(15 23 42 / 28%) !important;
+}
+
+@media (min-width: 640px) {
+  .sfen-staff-shell main > div {
+    padding: 1.5rem;
+  }
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;

@@ -73,7 +73,7 @@ export const CommanderDashboardView: React.FC<CommanderDashboardViewProps> = ({
             Supervisory Command Overview
           </h1>
           <p className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-            {commander.rank} {commander.fullName} ({commander.personnelNumber}) • {commander.station || 'SAPS Sandton Police Station'}
+            {commander.rank} {commander.fullName} ({commander.personnelNumber}) • {commander.station || 'SAPS Berea Police Station'}
           </p>
         </div>
 
@@ -98,9 +98,8 @@ export const CommanderDashboardView: React.FC<CommanderDashboardViewProps> = ({
         
         {/* 1. Cases Under Supervision */}
         <div 
-          onClick={() => onNavigateToCases('all')}
-          className={`p-4 rounded-md border transition-colors cursor-pointer group flex flex-col justify-between ${
-            isDark ? 'bg-black border-slate-800 hover:border-blue-600' : 'bg-white border-slate-200 hover:border-blue-600'
+          className={`p-4 rounded-md border flex flex-col justify-between ${
+            isDark ? 'bg-black border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
           <div className="flex items-center justify-between">
@@ -126,9 +125,8 @@ export const CommanderDashboardView: React.FC<CommanderDashboardViewProps> = ({
 
         {/* 2. Cases Awaiting Detective Assignment */}
         <div 
-          onClick={() => onNavigateToCases('unassigned')}
-          className={`p-4 rounded-md border transition-colors cursor-pointer group flex flex-col justify-between ${
-            isDark ? 'bg-black border-slate-800 hover:border-blue-600' : 'bg-white border-slate-200 hover:border-blue-600'
+          className={`p-4 rounded-md border flex flex-col justify-between ${
+            isDark ? 'bg-black border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
           <div className="flex items-center justify-between">
@@ -154,9 +152,8 @@ export const CommanderDashboardView: React.FC<CommanderDashboardViewProps> = ({
 
         {/* 3. Cases Requiring Review */}
         <div 
-          onClick={() => onNavigateToCases('review_due')}
-          className={`p-4 rounded-md border transition-colors cursor-pointer group flex flex-col justify-between ${
-            isDark ? 'bg-black border-slate-800 hover:border-blue-600' : 'bg-white border-slate-200 hover:border-blue-600'
+          className={`p-4 rounded-md border flex flex-col justify-between ${
+            isDark ? 'bg-black border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
           <div className="flex items-center justify-between">
@@ -182,9 +179,8 @@ export const CommanderDashboardView: React.FC<CommanderDashboardViewProps> = ({
 
         {/* 4. Outstanding Supervisor Instructions */}
         <div 
-          onClick={() => onNavigateToCases('all')}
-          className={`p-4 rounded-md border transition-colors cursor-pointer group flex flex-col justify-between ${
-            isDark ? 'bg-black border-slate-800 hover:border-blue-600' : 'bg-white border-slate-200 hover:border-blue-600'
+          className={`p-4 rounded-md border flex flex-col justify-between ${
+            isDark ? 'bg-black border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
           <div className="flex items-center justify-between">
@@ -210,9 +206,8 @@ export const CommanderDashboardView: React.FC<CommanderDashboardViewProps> = ({
 
         {/* 5. Dockets Awaiting Acknowledgement */}
         <div 
-          onClick={() => onNavigateToCases('awaiting_ack')}
-          className={`p-4 rounded-md border transition-colors cursor-pointer group flex flex-col justify-between ${
-            isDark ? 'bg-black border-slate-800 hover:border-blue-600' : 'bg-white border-slate-200 hover:border-blue-600'
+          className={`p-4 rounded-md border flex flex-col justify-between ${
+            isDark ? 'bg-black border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
           <div className="flex items-center justify-between">
@@ -263,8 +258,14 @@ export const CommanderDashboardView: React.FC<CommanderDashboardViewProps> = ({
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="font-mono font-bold text-blue-600">{c.caseNumber}</span>
-                  <span className={`text-[10px] px-2 py-0.5 border ${
-                    isDark ? 'border-white/20 text-slate-300' : 'border-black/20 text-slate-700'
+                  <span className={`text-[10px] px-2 py-0.5 border font-semibold ${
+                    c.priorityLevel === 'Critical'
+                      ? 'bg-red-600 border-red-500 text-white'
+                      : c.priorityLevel === 'Urgent'
+                        ? (isDark ? 'bg-red-500/20 border-red-500/40 text-red-300' : 'bg-red-100 border-red-300 text-red-700')
+                        : c.priorityLevel === 'High Priority'
+                          ? (isDark ? 'bg-amber-500/15 border-amber-500/30 text-amber-300' : 'bg-amber-50 border-amber-300 text-amber-800')
+                          : (isDark ? 'bg-slate-800/70 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-300 text-slate-700')
                   }`}>
                     {c.priorityLevel}
                   </span>
@@ -276,15 +277,6 @@ export const CommanderDashboardView: React.FC<CommanderDashboardViewProps> = ({
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
-                {(!c.investigatingOfficerPersonnelNumber || c.investigatingOfficerName === 'Unassigned') && (
-                  <button
-                    type="button"
-                    onClick={() => onOpenAssignModal(c)}
-                    className="px-2.5 py-1 text-xs border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white transition-colors cursor-pointer"
-                  >
-                    Assign Detective
-                  </button>
-                )}
                 <button
                   type="button"
                   onClick={() => onOpenCase(c)}

@@ -37,7 +37,7 @@ interface AdminUsersViewProps {
     rank: string;
     role: UserRole;
     division?: string;
-  }) => void;
+  }) => Promise<{ user: AdminUserRecord; temporaryPassword: string }>;
   onUpdateUser: (id: string, updates: Partial<AdminUserRecord>) => void;
   onSetUserStatus: (id: string, status: AccountStatus) => void;
   onResetPassword: (id: string) => { success: boolean; tempPassword: string; message: string };
@@ -134,7 +134,7 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
     if (onCloseAddModal) onCloseAddModal();
   };
 
-  const handleSubmitAdd = (e: React.FormEvent) => {
+  const handleSubmitAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
 
@@ -152,7 +152,7 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
     }
 
     try {
-      onAddPersonnel({
+      const result = await onAddPersonnel({
         fullName: formData.fullName.trim(),
         personnelNumber: formData.personnelNumber.trim().toUpperCase(),
         email: formData.email.trim(),
@@ -161,6 +161,7 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
         role: formData.role,
         division: formData.division.trim()
       });
+      setResetResult({ user: result.user, tempPassword: result.temporaryPassword });
       handleCloseAdd();
     } catch (err: any) {
       setFormError(err.message || 'Failed to create personnel account.');
@@ -422,8 +423,8 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
           MODAL: ADD POLICE PERSONNEL
           ========================================================================= */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="w-full max-w-xl rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl p-6 space-y-5 animate-in fade-in zoom-in-95 duration-150">
+        <div className="sfen-private-overlay fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="sfen-private-modal w-full max-w-xl rounded-2xl border p-6 space-y-5 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-start justify-between">
               <div>
                 <div className="flex items-center gap-2 text-purple-400 text-xs font-bold uppercase tracking-wider">
@@ -600,8 +601,8 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
           MODAL: VIEW USER DETAILS
           ========================================================================= */}
       {viewingUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl p-6 space-y-5 animate-in fade-in zoom-in-95 duration-150">
+        <div className="sfen-private-overlay fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="sfen-private-modal w-full max-w-lg rounded-2xl border p-6 space-y-5 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg shrink-0 ${
@@ -753,8 +754,8 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
           MODAL: EDIT USER
           ========================================================================= */}
       {editingUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl p-6 space-y-4">
+        <div className="sfen-private-overlay fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="sfen-private-modal w-full max-w-lg rounded-2xl border p-6 space-y-4">
             <div className="flex items-start justify-between">
               <div>
                 <h3 className="text-lg font-bold text-white">
@@ -868,8 +869,8 @@ export const AdminUsersView: React.FC<AdminUsersViewProps> = ({
           MODAL: PASSWORD RESET CONFIRMATION
           ========================================================================= */}
       {resetResult && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl p-6 space-y-4">
+        <div className="sfen-private-overlay fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="sfen-private-modal w-full max-w-md rounded-2xl border p-6 space-y-4">
             <div className="flex items-center gap-3 text-purple-400">
               <div className="p-2.5 rounded-xl bg-purple-500/15 border border-purple-500/30">
                 <KeyRound size={22} />

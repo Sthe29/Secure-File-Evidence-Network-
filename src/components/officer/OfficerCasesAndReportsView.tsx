@@ -42,10 +42,36 @@ interface OfficerCasesAndReportsViewProps {
   initialSubTab?: 'all' | 'reports' | 'cases';
   onReviewReport: (reportId: string) => void;
   onRequestAdditionalInfo: (reportId: string, notes: string) => { success: boolean; message: string };
-  onRegisterCase: (input: CaseRegistrationInput) => { success: boolean; caseNumber: string; message: string };
+  onRegisterCase: (input: CaseRegistrationInput) => Promise<{ success: boolean; caseNumber: string; message: string }>;
+  onCreateWalkInReport: (input: Record<string, string>) => Promise<{ success: boolean; report: IncidentReport | null; message: string }>;
   onNavigateToDocketMovement?: () => void;
   onNavigateToDetectiveBranch?: () => void;
 }
+
+const WalkInField: React.FC<{
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+  required?: boolean;
+  inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode'];
+  maxLength?: number;
+  pattern?: string;
+}> = ({ label, value, onChange, type = 'text', required, inputMode, maxLength, pattern }) => (
+  <label className="text-xs text-slate-300 space-y-1.5">
+    <span>{label}</span>
+    <input
+      type={type}
+      required={required}
+      inputMode={inputMode}
+      maxLength={maxLength}
+      pattern={pattern}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      className="w-full rounded-lg bg-slate-950 border border-slate-600 px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-400"
+    />
+  </label>
+);
 
 export const OfficerCasesAndReportsView: React.FC<OfficerCasesAndReportsViewProps> = ({
   reports,
@@ -55,6 +81,7 @@ export const OfficerCasesAndReportsView: React.FC<OfficerCasesAndReportsViewProp
   onReviewReport,
   onRequestAdditionalInfo,
   onRegisterCase,
+  onCreateWalkInReport,
   onNavigateToDocketMovement,
   onNavigateToDetectiveBranch
 }) => {
@@ -74,6 +101,10 @@ export const OfficerCasesAndReportsView: React.FC<OfficerCasesAndReportsViewProp
 
   // Case registration modal state
   const [isRegisteringCase, setIsRegisteringCase] = useState(false);
+  const [isWalkInIntakeOpen, setIsWalkInIntakeOpen] = useState(false);
+  const [isCreatingWalkIn, setIsCreatingWalkIn] = useState(false);
+  const [walkInError, setWalkInError] = useState('');
+  const [walkInForm, setWalkInForm] = useState({ fullName: '', phoneNumber: '', email: '', nationalId: '', incidentType: 'Theft / Burglary', incidentDate: new Date().toISOString().slice(0, 10), incidentTime: new Date().toTimeString().slice(0, 5), address: '', suburb: '', city: 'Durban', province: 'KwaZulu-Natal', description: '' });
 
   // Derived counts
   const awaitingReviewCount = reports.filter(r => r.status === 'Awaiting Review').length;
@@ -82,6 +113,9 @@ export const OfficerCasesAndReportsView: React.FC<OfficerCasesAndReportsViewProp
 
   // Filtered reports
   const filteredReports = reports.filter((r) => {
+    // Once a CAS docket exists, the item belongs only in Registered Cases.
+    if (r.status === 'Registered to Case' || r.linkedCaseNumber) return false;
+
     const q = searchQuery.toLowerCase().trim();
     const matchesSearch = !q || (
       r.referenceNumber.toLowerCase().includes(q) ||
@@ -144,6 +178,21 @@ export const OfficerCasesAndReportsView: React.FC<OfficerCasesAndReportsViewProp
     if (report.status === 'Awaiting Review') {
       onReviewReport(report.id);
     }
+  };
+
+  const handleCreateWalkIn = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setWalkInError('');
+    setIsCreatingWalkIn(true);
+    const result = await onCreateWalkInReport(walkInForm);
+    setIsCreatingWalkIn(false);
+    if (!result.success || !result.report) {
+      setWalkInError(result.message);
+      return;
+    }
+    setIsWalkInIntakeOpen(false);
+    setSelectedReport(result.report);
+    setIsRegisteringCase(true);
   };
 
   // Handle send clarification
@@ -315,7 +364,7 @@ export const OfficerCasesAndReportsView: React.FC<OfficerCasesAndReportsViewProp
               Walk-In Citizen Digital Case Opening
             </h3>
             <p className="text-xs text-slate-300 max-w-2xl leading-relaxed mt-0.5">
-              Citizens file an initial incident overview online, then attend the station to open an official case. Pull up their reference to verify their statement, issue a formal CAS number, and transfer the docket to Detectives.
+              Look up an online reference, or start a walk-in intake for a citizen who arrived at the station. The formal statement, evidence, and verification are completed before a CAS number is issued.
             </p>
           </div>
         </div>
@@ -331,6 +380,14 @@ export const OfficerCasesAndReportsView: React.FC<OfficerCasesAndReportsViewProp
               className="pl-8 pr-3 py-2 rounded-xl bg-slate-950 border border-slate-700/80 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 w-64 sm:w-72"
             />
           </div>
+          <button
+            type="button"
+            onClick={() => { setWalkInError(''); setIsWalkInIntakeOpen(true); }}
+            className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+          >
+            <FolderPlus size={15} />
+            Start Walk-In Intake
+          </button>
         </div>
       </div>
 
@@ -434,7 +491,6 @@ export const OfficerCasesAndReportsView: React.FC<OfficerCasesAndReportsViewProp
             { id: 'ALL', label: 'All Submissions', count: reports.length },
             { id: 'AWAITING', label: 'Awaiting Review', count: awaitingReviewCount, color: 'text-amber-300' },
             { id: 'IN_PROGRESS', label: 'Under Review / Info Req', count: inProgressCount },
-            { id: 'REGISTERED', label: 'Registered to Case', count: registeredReportsCount }
           ].map((pill) => (
             <button
               key={pill.id}
@@ -514,6 +570,11 @@ export const OfficerCasesAndReportsView: React.FC<OfficerCasesAndReportsViewProp
                         <span className="font-mono text-sm font-bold text-purple-300">
                           {report.referenceNumber}
                         </span>
+                        {report.requiresImmediateAttention && (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-red-600 text-white flex items-center gap-1">
+                            <AlertTriangle size={10} /> Urgent assistance
+                          </span>
+                        )}
                         {getReportStatusBadge(report.status, report.linkedCaseNumber)}
                       </div>
 
@@ -549,28 +610,18 @@ export const OfficerCasesAndReportsView: React.FC<OfficerCasesAndReportsViewProp
                           <Briefcase size={13} />
                           <span>View CAS Docket</span>
                         </button>
-                      ) : (
+                      ) : null}
+
+                      {!report.linkedCaseNumber && (
                         <button
                           type="button"
-                          onClick={() => {
-                            setSelectedReport(report);
-                            setIsRegisteringCase(true);
-                          }}
-                          className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                          onClick={() => handleOpenReport(report)}
+                          className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
                         >
-                          <FolderPlus size={13} />
-                          <span>Register Case</span>
+                          <Eye size={13} />
+                          <span>Review and Register Case</span>
                         </button>
                       )}
-
-                      <button
-                        type="button"
-                        onClick={() => handleOpenReport(report)}
-                        className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
-                      >
-                        <Eye size={13} />
-                        <span>Review Details</span>
-                      </button>
                     </div>
                   </div>
                 );
@@ -667,6 +718,11 @@ export const OfficerCasesAndReportsView: React.FC<OfficerCasesAndReportsViewProp
                     <span className="font-mono text-sm font-bold text-purple-300">
                       {report.referenceNumber}
                     </span>
+                    {report.requiresImmediateAttention && (
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-red-600 text-white flex items-center gap-1">
+                        <AlertTriangle size={10} /> Urgent assistance
+                      </span>
+                    )}
                     {getReportStatusBadge(report.status, report.linkedCaseNumber)}
                   </div>
 
@@ -697,17 +753,14 @@ export const OfficerCasesAndReportsView: React.FC<OfficerCasesAndReportsViewProp
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-slate-800/80">
-                  {report.status !== 'Registered to Case' && (
+                  {report.status !== 'Registered to Case' && !report.linkedCaseNumber && (
                     <button
                       type="button"
-                      onClick={() => {
-                        setSelectedReport(report);
-                        setIsRegisteringCase(true);
-                      }}
-                      className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                      onClick={() => handleOpenReport(report)}
+                      className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
                     >
-                      <FolderPlus size={13} />
-                      <span>Register Case</span>
+                      <Eye size={13} />
+                      <span>Review and Register Case</span>
                     </button>
                   )}
 
@@ -722,14 +775,14 @@ export const OfficerCasesAndReportsView: React.FC<OfficerCasesAndReportsViewProp
                     </button>
                   )}
 
-                  <button
+                  {report.linkedCaseNumber ? null : <button
                     type="button"
                     onClick={() => handleOpenReport(report)}
                     className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
                   >
                     <Eye size={13} />
                     <span>Review</span>
-                  </button>
+                  </button>}
                 </div>
               </div>
             ))
@@ -818,11 +871,11 @@ export const OfficerCasesAndReportsView: React.FC<OfficerCasesAndReportsViewProp
 
       {/* REPORT DETAIL MODAL */}
       {selectedReport && !isRegisteringCase && !isRequestingInfo && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl animate-fade-in my-6">
+        <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="sfen-docket-modal rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl animate-fade-in my-6">
             
             {/* Modal Header */}
-            <div className="p-4 sm:p-6 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+            <div className="p-4 sm:p-6 border-b border-white/15 flex items-center justify-between bg-slate-950/45">
               <div className="space-y-1">
                 <div className="flex items-center gap-2.5">
                   <span className="font-mono text-base sm:text-lg font-bold text-purple-300">
@@ -831,14 +884,16 @@ export const OfficerCasesAndReportsView: React.FC<OfficerCasesAndReportsViewProp
                   {getReportStatusBadge(selectedReport.status, selectedReport.linkedCaseNumber)}
                 </div>
                 <p className="text-xs text-slate-400">
-                  Citizen submission • Mapped Incident Location & Sworn Complainant Declaration
+                  {selectedReport.stationNotes?.startsWith('Walk-in intake opened')
+                    ? 'Walk-in station intake • Officer-recorded incident details'
+                    : 'Citizen submission • Mapped Incident Location & Sworn Complainant Declaration'}
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={() => setSelectedReport(null)}
-                className="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                className="p-2 rounded-xl border border-white/20 bg-white/10 text-slate-300 hover:text-white transition-colors cursor-pointer"
               >
                 <X size={18} />
               </button>
@@ -894,7 +949,7 @@ export const OfficerCasesAndReportsView: React.FC<OfficerCasesAndReportsViewProp
               )}
               
               {/* Complainant Overview Grid */}
-              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800/80 space-y-3">
+              <div className="sfen-glass-panel p-4 rounded-2xl space-y-3">
                 <div className="flex items-center gap-2 text-xs font-bold text-slate-300 uppercase tracking-wider">
                   <User size={14} className="text-blue-400" />
                   <span>Complainant Identification</span>
@@ -917,12 +972,12 @@ export const OfficerCasesAndReportsView: React.FC<OfficerCasesAndReportsViewProp
 
               {/* Incident Details Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800/80 space-y-1">
+                <div className="sfen-glass-panel p-4 rounded-2xl space-y-1">
                   <span className="text-slate-500 block text-[11px]">Reported Incident Classification</span>
                   <strong className="text-sm text-white block">{selectedReport.incidentType}</strong>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800/80 space-y-1">
+                <div className="sfen-glass-panel p-4 rounded-2xl space-y-1">
                   <span className="text-slate-500 block text-[11px]">Date & Time of Occurrence</span>
                   <span className="font-mono text-slate-200">
                     {selectedReport.incidentDate} at {selectedReport.incidentTime}
@@ -931,7 +986,7 @@ export const OfficerCasesAndReportsView: React.FC<OfficerCasesAndReportsViewProp
               </div>
 
               {/* Incident Description */}
-              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800/80 space-y-2">
+              <div className="sfen-glass-panel p-4 rounded-2xl space-y-2">
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                   Complainant Sworn Statement / Narrative
                 </span>
@@ -942,7 +997,7 @@ export const OfficerCasesAndReportsView: React.FC<OfficerCasesAndReportsViewProp
 
               {/* Station Notes if available */}
               {selectedReport.stationNotes && (
-                <div className="p-4 rounded-2xl bg-blue-950/30 border border-blue-500/30 space-y-1 text-xs">
+                <div className="sfen-glass-panel p-4 rounded-2xl space-y-1 text-xs">
                   <span className="text-[11px] font-bold text-blue-300 uppercase tracking-wider">
                     Station Intake Notes & History
                   </span>
@@ -953,7 +1008,7 @@ export const OfficerCasesAndReportsView: React.FC<OfficerCasesAndReportsViewProp
               )}
 
               {/* Map Location Section */}
-              {selectedReport.location && (
+              {selectedReport.location && !selectedReport.stationNotes?.startsWith('Walk-in intake opened') && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-bold text-slate-300 flex items-center gap-1.5">
@@ -982,6 +1037,19 @@ export const OfficerCasesAndReportsView: React.FC<OfficerCasesAndReportsViewProp
                 </div>
               )}
 
+              {selectedReport.location && selectedReport.stationNotes?.startsWith('Walk-in intake opened') && (
+                <div className="sfen-glass-panel p-4 rounded-2xl text-xs space-y-2">
+                  <span className="font-bold text-slate-300 flex items-center gap-1.5">
+                    <MapPin size={14} className="text-blue-400" />
+                    <span>Officer-Recorded Incident Location</span>
+                  </span>
+                  <p className="text-slate-200 leading-relaxed">
+                    {selectedReport.location.address}, {selectedReport.location.suburb}, {selectedReport.location.city}, {selectedReport.location.province}
+                  </p>
+                  <p className="text-[11px] text-slate-400">This incident was reported in person at the station; no map location was captured.</p>
+                </div>
+              )}
+
               {/* Attachments */}
               {selectedReport.attachments && selectedReport.attachments.length > 0 && (
                 <div className="space-y-2">
@@ -991,9 +1059,18 @@ export const OfficerCasesAndReportsView: React.FC<OfficerCasesAndReportsViewProp
                   </span>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {selectedReport.attachments.map((att, idx) => (
-                      <div key={idx} className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
+                      <div key={idx} className="sfen-glass-panel p-3 rounded-xl flex items-center justify-between text-xs">
                         <span className="text-slate-300 truncate max-w-[200px]">{att.name}</span>
-                        <span className="text-[10px] font-mono text-slate-500 uppercase">{att.type}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-mono text-slate-500 uppercase">{att.type}</span>
+                          <button
+                            type="button"
+                            onClick={() => att.dataUrl ? window.open(att.dataUrl, '_blank', 'noopener,noreferrer') : alert('This older attachment only has file details saved. Ask the complainant to provide a new copy if needed.')}
+                            className="text-blue-300 hover:text-white underline font-semibold cursor-pointer"
+                          >
+                            View
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1003,45 +1080,26 @@ export const OfficerCasesAndReportsView: React.FC<OfficerCasesAndReportsViewProp
             </div>
 
             {/* Modal Actions Footer */}
-            <div className="p-4 sm:p-5 border-t border-slate-800 bg-slate-950/80 flex flex-wrap items-center justify-between gap-3">
+            <div className="p-4 sm:p-5 border-t border-white/15 bg-slate-950/45 flex flex-col-reverse sm:flex-row justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setSelectedReport(null)}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
+                className="px-4 py-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/15 text-white text-xs font-semibold cursor-pointer"
               >
                 Close
               </button>
 
-              <div className="flex items-center gap-2">
+              {selectedReport.status !== 'Registered to Case' && !selectedReport.linkedCaseNumber && (
                 <button
                   type="button"
-                  onClick={() => setIsRequestingInfo(true)}
-                  className="px-3.5 py-2 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 text-purple-300 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  onClick={() => setIsRegisteringCase(true)}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <MessageSquarePlus size={13} />
-                  <span>Request Clarification</span>
+                  <FolderPlus size={14} />
+                  Continue to Case Registration
                 </button>
+              )}
 
-                {selectedReport.linkedCaseNumber ? (
-                  <button
-                    type="button"
-                    onClick={() => handleViewLinkedCaseFromReport(selectedReport.linkedCaseNumber!)}
-                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
-                  >
-                    <Briefcase size={14} />
-                    <span>View Official CAS Case</span>
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setIsRegisteringCase(true)}
-                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-md"
-                  >
-                    <FolderPlus size={14} />
-                    <span>Assist Walk-in: Open CAS & Transfer to Detectives</span>
-                  </button>
-                )}
-              </div>
             </div>
 
           </div>
@@ -1107,6 +1165,53 @@ export const OfficerCasesAndReportsView: React.FC<OfficerCasesAndReportsViewProp
         </div>
       )}
 
+      {/* WALK-IN INTAKE MODAL */}
+      {isWalkInIntakeOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <form onSubmit={handleCreateWalkIn} className="sfen-docket-modal rounded-3xl w-full max-w-3xl shadow-2xl my-6">
+            <div className="p-5 sm:p-6 border-b border-white/15 flex items-start justify-between gap-4 bg-slate-950/35">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-blue-300">Station intake desk</p>
+                <h3 className="text-lg sm:text-xl font-black text-white mt-1">Open Walk-In Incident Intake</h3>
+                <p className="text-xs text-slate-300 mt-1">Capture the preliminary report with the citizen present. The next screen records the formal statement, evidence, and CAS requirements.</p>
+              </div>
+              <button type="button" onClick={() => setIsWalkInIntakeOpen(false)} className="p-2 rounded-xl border border-white/20 bg-white/10 text-slate-300 hover:text-white cursor-pointer"><X size={18} /></button>
+            </div>
+
+            <div className="p-5 sm:p-6 max-h-[70vh] overflow-y-auto space-y-5">
+              <section className="space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-blue-300">Citizen details</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <WalkInField label="Full legal name" value={walkInForm.fullName} required onChange={(value) => setWalkInForm({ ...walkInForm, fullName: value })} />
+                  <WalkInField label="Contact phone number (10 digits)" inputMode="numeric" maxLength={10} pattern="[0-9]{10}" value={walkInForm.phoneNumber} required onChange={(value) => setWalkInForm({ ...walkInForm, phoneNumber: value.replace(/\D/g, '').slice(0, 10) })} />
+                  <WalkInField label="Email address (optional)" type="email" value={walkInForm.email} onChange={(value) => setWalkInForm({ ...walkInForm, email: value })} />
+                  <WalkInField label="ID number (13 digits)" inputMode="numeric" maxLength={13} pattern="[0-9]{13}" value={walkInForm.nationalId} required onChange={(value) => setWalkInForm({ ...walkInForm, nationalId: value.replace(/\D/g, '').slice(0, 13) })} />
+                </div>
+              </section>
+
+              <section className="space-y-3 pt-1 border-t border-white/10">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-blue-300 pt-4">Preliminary incident details</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className="text-xs text-slate-300 space-y-1.5"><span>Incident type</span><select value={walkInForm.incidentType} onChange={(e) => setWalkInForm({ ...walkInForm, incidentType: e.target.value })} className="w-full rounded-lg bg-slate-950 border border-slate-600 px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-400"><option>Theft / Burglary</option><option>Robbery</option><option>Assault / GBH</option><option>Malicious Damage to Property</option><option>Fraud / Cybercrime</option><option>Domestic Violence / Harassment</option><option>Other Criminal Incident</option></select></label>
+                  <WalkInField label="Date of incident" type="date" value={walkInForm.incidentDate} required onChange={(value) => setWalkInForm({ ...walkInForm, incidentDate: value })} />
+                  <WalkInField label="Time (if known)" type="time" value={walkInForm.incidentTime} onChange={(value) => setWalkInForm({ ...walkInForm, incidentTime: value })} />
+                  <WalkInField label="Street address / location" value={walkInForm.address} required onChange={(value) => setWalkInForm({ ...walkInForm, address: value })} />
+                  <WalkInField label="Suburb" value={walkInForm.suburb} required onChange={(value) => setWalkInForm({ ...walkInForm, suburb: value })} />
+                  <WalkInField label="City" value={walkInForm.city} required onChange={(value) => setWalkInForm({ ...walkInForm, city: value })} />
+                </div>
+                <label className="block text-xs text-slate-300 space-y-1.5"><span>Citizen's preliminary account</span><textarea required minLength={10} rows={4} value={walkInForm.description} onChange={(e) => setWalkInForm({ ...walkInForm, description: e.target.value })} placeholder="Briefly record what the citizen says happened. The formal statement is captured next." className="w-full resize-y rounded-lg bg-slate-950 border border-slate-600 px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-400" /></label>
+              </section>
+
+              {walkInError && <p className="text-xs text-red-300 border border-red-400/30 bg-red-500/10 rounded-lg p-3">{walkInError}</p>}
+            </div>
+            <div className="p-4 sm:p-5 border-t border-white/15 bg-slate-950/35 flex justify-end gap-3">
+              <button type="button" onClick={() => setIsWalkInIntakeOpen(false)} className="px-4 py-2 rounded-xl border border-white/20 bg-white/10 text-white text-xs font-semibold cursor-pointer">Cancel</button>
+              <button disabled={isCreatingWalkIn} className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"><FolderPlus size={14} />{isCreatingWalkIn ? 'Opening intake...' : 'Continue to Case Registration'}</button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* CASE REGISTRATION MODAL */}
       {isRegisteringCase && selectedReport && (
         <OfficerCaseRegistrationModal
@@ -1132,11 +1237,11 @@ export const OfficerCasesAndReportsView: React.FC<OfficerCasesAndReportsViewProp
 
       {/* REGISTERED CASE DETAILS MODAL */}
       {selectedCase && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl animate-fade-in my-6">
+        <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="sfen-docket-modal rounded-3xl w-full max-w-2xl shadow-2xl animate-fade-in my-6">
             
             {/* Modal Header */}
-            <div className="p-4 sm:p-6 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+            <div className="p-4 sm:p-6 border-b border-white/15 flex items-center justify-between bg-slate-950/35">
               <div className="space-y-1">
                 <div className="flex items-center gap-2.5">
                   <span className="font-mono text-base sm:text-lg font-bold text-emerald-400">
@@ -1152,7 +1257,7 @@ export const OfficerCasesAndReportsView: React.FC<OfficerCasesAndReportsViewProp
               <button
                 type="button"
                 onClick={() => setSelectedCase(null)}
-                className="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                className="p-2 rounded-xl border border-white/20 bg-white/10 text-slate-300 hover:text-white cursor-pointer"
               >
                 <X size={18} />
               </button>
@@ -1163,23 +1268,23 @@ export const OfficerCasesAndReportsView: React.FC<OfficerCasesAndReportsViewProp
               
               {/* Summary Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1">
+                <div className="sfen-glass-panel p-3.5 rounded-xl space-y-1">
                   <span className="text-slate-500 block text-[11px]">Incident Offence</span>
                   <strong className="text-white text-sm block">{selectedCase.incidentType}</strong>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1">
+                <div className="sfen-glass-panel p-3.5 rounded-xl space-y-1">
                   <span className="text-slate-500 block text-[11px]">Investigating Officer</span>
                   <span className="text-slate-200 font-medium block">{selectedCase.investigatingOfficer}</span>
                   <span className="text-[10px] text-slate-400">{selectedCase.officerRank}</span>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1">
+                <div className="sfen-glass-panel p-3.5 rounded-xl space-y-1">
                   <span className="text-slate-500 block text-[11px]">Date Registered</span>
                   <span className="font-mono text-slate-200">{selectedCase.dateRegistered}</span>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1">
+                <div className="sfen-glass-panel p-3.5 rounded-xl space-y-1">
                   <span className="text-slate-500 block text-[11px]">Linked Origin Reference</span>
                   <span className="font-mono text-purple-300">
                     {selectedCase.reportReference || 'Direct Station Registration'}
@@ -1188,7 +1293,7 @@ export const OfficerCasesAndReportsView: React.FC<OfficerCasesAndReportsViewProp
               </div>
 
               {/* Latest Update */}
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5">
+              <div className="sfen-glass-panel p-4 rounded-xl space-y-1.5">
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                   Latest Case Summary & Directives
                 </span>
@@ -1202,13 +1307,13 @@ export const OfficerCasesAndReportsView: React.FC<OfficerCasesAndReportsViewProp
 
               {/* Investigation Milestones Timeline */}
               {selectedCase.timeline && selectedCase.timeline.length > 0 && (
-                <div className="space-y-3 pt-2">
+                <div className="sfen-glass-panel p-4 rounded-xl space-y-3">
                   <span className="text-xs font-bold text-white flex items-center gap-1.5">
                     <Layers size={14} className="text-blue-400" />
                     <span>Investigation Stages & Chain of Custody</span>
                   </span>
 
-                  <div className="space-y-3 pl-2 border-l-2 border-slate-800">
+                  <div className="space-y-3 pl-2 border-l-2 border-blue-300/30">
                     {selectedCase.timeline.map((stage, idx) => (
                       <div key={idx} className="relative pl-5 space-y-0.5">
                         <span className={`absolute -left-[1.35rem] top-1 w-3 h-3 rounded-full border-2 ${
@@ -1240,11 +1345,11 @@ export const OfficerCasesAndReportsView: React.FC<OfficerCasesAndReportsViewProp
             </div>
 
             {/* Modal Actions Footer */}
-            <div className="p-4 sm:p-5 border-t border-slate-800 bg-slate-950/80 flex items-center justify-between gap-3">
+            <div className="p-4 sm:p-5 border-t border-white/15 bg-slate-950/35 flex items-center justify-between gap-3">
               <button
                 type="button"
                 onClick={() => setSelectedCase(null)}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold cursor-pointer"
+                className="px-4 py-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/15 text-white text-xs font-semibold cursor-pointer"
               >
                 Close
               </button>

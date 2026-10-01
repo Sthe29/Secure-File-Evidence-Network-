@@ -35,7 +35,7 @@ const POLICE_STATIONS = [
   'Sandton Police Station',
   'Johannesburg Central Station',
   'Cape Town Central SAPS',
-  'Durban Central SAPS',
+  'SAPS Berea Police Station',
   'Pretoria Central SAPS',
   'Other Police Station'
 ];
@@ -73,6 +73,9 @@ export const ComplaintsView: React.FC<ComplaintsViewProps> = ({
       try {
         const newCmp = submitServiceComplaint({
           userId: citizen.id,
+          complainantName: citizen.fullName,
+          complainantPhone: citizen.phoneNumber,
+          complainantEmail: citizen.email,
           category,
           policeStation,
           linkedReference: linkedReference.trim() || undefined,

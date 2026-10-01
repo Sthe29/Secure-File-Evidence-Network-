@@ -57,6 +57,7 @@ export interface CaseDocumentRecord {
   description: string;
   fileFormat: string; // PDF, JPG, MP4, etc.
   fileSize: string;
+  dataUrl?: string;
   addedBy: string;
   addedByRank: string;
   addedByPersonnelNumber: string;
@@ -115,6 +116,7 @@ export type CaseAuditAction =
   | 'DOCKET_RECEIPT_ACKNOWLEDGED'
   | 'DOCKET_TRANSFERRED'
   | 'CASE_STATUS_UPDATED'
+  | 'DETECTIVE_RESPONSE_SLA_ESCALATED'
   | 'CUSTODY_TRANSFERRED';
 
 export interface CaseAuditEntry {
@@ -196,10 +198,16 @@ export interface DetectiveCaseDocket {
   lastSupervisoryReviewNotes?: string;
   lastSupervisoryReviewDate?: string;
   supervisoryReviewRequestedAt?: string;
+  /** Seven-day deadline for the detective's first diary entry or status response. */
+  initialResponseDueAt?: string;
+  responseEscalatedAt?: string;
 
   // Overview specifics
   statutoryCode?: string;
   priorityLevel: 'Standard' | 'Urgent' | 'High Priority' | 'Critical';
   nextCourtDate?: string;
   scheduledReviewDate?: string;
+  attachments?: import('./complainant').AttachedFile[];
+  stationEvidenceItems?: Array<{ name: string; type: string; size: number; dataUrl?: string }>;
+  evidenceIntakeNotes?: string;
 }

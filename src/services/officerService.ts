@@ -18,7 +18,8 @@ import {
   DetectiveCaseDocket,
   DocketTransferMovement,
   CaseAuditEntry,
-  DetectiveNotification
+  DetectiveNotification,
+  CaseDocumentRecord
 } from '../types/detective';
 
 const STORAGE_KEYS = {
@@ -37,10 +38,11 @@ const STORAGE_KEYS = {
   DETECTIVE_MOVEMENTS: 'sfen_detective_movements',
   DETECTIVE_AUDIT: 'sfen_detective_audit_trails',
   DETECTIVE_NOTIFS: 'sfen_detective_notifications',
-  DETECTIVE_DIARY: 'sfen_detective_diary_entries'
+  DETECTIVE_DIARY: 'sfen_detective_diary_entries',
+  DETECTIVE_DOCUMENTS: 'sfen_detective_documents'
 };
 
-const DEFAULT_STATION_NAME = 'SAPS Sandton Police Station';
+const DEFAULT_STATION_NAME = 'SAPS Berea Police Station';
 
 // Initial seed detective roster
 const SEED_DETECTIVES: DetectiveOfficer[] = [
@@ -147,7 +149,7 @@ const SEED_MOVEMENTS: DocketMovementRecord[] = [
     reportReference: 'SFEN-RPT-000088',
     offence: 'Fraud / Cybercrime',
     complainantName: 'Thandi Molefe',
-    origin: 'SAPS Sandton Police Station',
+    origin: 'SAPS Berea Police Station',
     destination: 'Commercial Crime Section - Specialist Branch',
     initiatedBy: 'Constable Sarah Ndlovu',
     initiatedByPersonnelNumber: 'POL-10824',
@@ -250,6 +252,24 @@ export const officerService = {
     return loadFromStorage<IncidentReport[]>(STORAGE_KEYS.REPORTS, SEED_REPORTS);
   },
 
+  // Online reports are retained for audit purposes but leave the active queue if
+  // the complainant has not attended the station to complete case registration.
+  archiveExpiredUnregisteredReports(): number {
+    const reports = this.getReports();
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    let archived = 0;
+    reports.forEach((report) => {
+      const isOpen = !report.linkedCaseNumber && report.status !== 'Registered to Case' && report.status !== 'Archived';
+      if (isOpen && new Date(report.submittedAt).getTime() <= cutoff) {
+        report.status = 'Archived';
+        report.stationNotes = 'Archived automatically after 30 days without in-person attendance and official CAS registration. The report remains available in the archive for audit purposes.';
+        archived += 1;
+      }
+    });
+    if (archived) saveToStorage(STORAGE_KEYS.REPORTS, reports);
+    return archived;
+  },
+
   // Mark report as under review
   markReportUnderReview(reportId: string, officer: UserProfile): IncidentReport | null {
     const reports = this.getReports();
@@ -346,10 +366,29 @@ export const officerService = {
     officer: UserProfile
   ): { success: boolean; caseNumber: string; registeredCase?: RegisteredCase; message: string } {
     const reports = this.getReports();
-    const reportIndex = reports.findIndex(r => r.id === input.reportId);
-    
+    let reportIndex = reports.findIndex(r => r.id === input.reportId);
     if (reportIndex === -1) {
-      return { success: false, caseNumber: '', message: 'Original report could not be found.' };
+      // A live API report may not yet exist in the older local workspace. Keep a
+      // local traceability mirror so the officer, detective, and case views stay in sync.
+      reports.unshift({
+        id: input.reportId,
+        referenceNumber: input.reportReference,
+        userId: 'live-complainant',
+        complainantName: input.complainantName,
+        complainantPhone: input.complainantPhone,
+        complainantEmail: input.complainantEmail,
+        incidentType: input.incidentType as IncidentReport['incidentType'],
+        incidentDate: input.incidentDate,
+        incidentTime: input.incidentTime,
+        location: { address: input.locationAddress, suburb: input.locationSuburb, city: 'Johannesburg', province: 'Gauteng', preferredStation: DEFAULT_STATION_NAME },
+        description: input.formalStatement,
+        involvedParties: {},
+        attachments: [],
+        status: 'Awaiting Review',
+        submittedAt: new Date().toISOString(),
+        policeStation: DEFAULT_STATION_NAME
+      });
+      reportIndex = 0;
     }
 
     const report = reports[reportIndex];
@@ -359,7 +398,7 @@ export const officerService = {
     const now = new Date();
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const year = now.getFullYear();
-    const officialCasNumber = `CAS ${nextCasSeq}/${month}/${year}`;
+    const officialCasNumber = input.officialCaseNumber || `CAS ${nextCasSeq}/${month}/${year}`;
     localStorage.setItem(STORAGE_KEYS.NEXT_CAS_NUM, String(nextCasSeq + 1));
 
     // Update Report (keeps in system for traceability!)
@@ -384,12 +423,16 @@ export const officerService = {
       currentStatus: 'Case Registered',
       progressStage: 1, // Stage 1: Case Registered
       lastUpdateDate: now.toISOString().split('T')[0],
-      lastUpdateSummary: `Official case opened from online submission ${report.referenceNumber} by Officer ${officer.fullName} (${officer.personnelNumber}). Initial classification: ${input.chargeDescription} (${input.statutoryCode}).`,
+      lastUpdateSummary: `Official case opened from online submission ${report.referenceNumber} by Officer ${officer.fullName} (${officer.personnelNumber}). Formal statement captured${input.evidenceItems.length ? ` and ${input.evidenceItems.length} evidence item(s) logged` : ''}${input.evidenceIntakeNotes ? '. Physical exhibit details recorded' : ''}. Initial classification: ${input.chargeDescription} (${input.statutoryCode}).`,
+      formalStatement: input.formalStatement,
+      evidenceItems: input.evidenceItems,
+      evidenceIntakeNotes: input.evidenceIntakeNotes,
+      attachments: report.attachments,
       timeline: [
         {
           title: 'Official Case Registration',
           date: now.toISOString().split('T')[0],
-          description: `Station Officer ${officer.rank} ${officer.fullName} verified complainant statements and registered official case ${officialCasNumber}.`,
+          description: `Station Officer ${officer.rank} ${officer.fullName} verified identity, captured the formal statement${input.evidenceItems.length ? `, logged ${input.evidenceItems.length} evidence item(s)` : ''}${input.evidenceIntakeNotes ? ', and recorded physical exhibit details' : ''}, and registered official case ${officialCasNumber}.`,
           completed: true,
           current: false
         },
@@ -437,7 +480,7 @@ export const officerService = {
       previousCustodian: `${officer.rank} ${officer.fullName} (CSC Frontline Intake)`,
       newCustodian: 'Det. Insp. David Khumalo',
       currentDocketCustodian: `${officer.rank} ${officer.fullName} (Pending Detective Acknowledgement)`,
-      origin: 'SAPS Sandton Police Station',
+      origin: 'SAPS Berea Police Station',
       destination: input.initialDocketDestination || 'Commercial Crime Section - Specialist Desk',
       initiatedBy: `${officer.rank} ${officer.fullName}`,
       initiatedByPersonnelNumber: officer.personnelNumber,
@@ -462,6 +505,9 @@ export const officerService = {
       id: `det_cas_${Date.now()}`,
       caseNumber: officialCasNumber,
       reportReference: report.referenceNumber,
+      attachments: report.attachments,
+      stationEvidenceItems: input.evidenceItems,
+      evidenceIntakeNotes: input.evidenceIntakeNotes,
       incidentType: input.incidentType || report.incidentType,
       offenceSubcategory: input.chargeDescription || report.incidentType,
       policeStation: DEFAULT_STATION_NAME,
@@ -478,7 +524,7 @@ export const officerService = {
         fullName: input.complainantName || report.complainantName,
         phoneNumber: input.complainantPhone || report.complainantPhone,
         email: input.complainantEmail || report.complainantEmail,
-        statementSummary: report.description || 'Verified complainant statement captured at station intake.'
+        statementSummary: input.formalStatement || report.description || 'Verified complainant statement captured at station intake.'
       },
       investigatingOfficerId: defaultDetective.id,
       investigatingOfficerName: defaultDetective.fullName,
@@ -487,6 +533,7 @@ export const officerService = {
       assignedDate: now.toISOString().split('T')[0],
       lastActivityDate: now.toISOString().split('T')[0],
       currentStatus: 'Investigation Active',
+      initialResponseDueAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
 
       // Registration Origin: Who registered this case?
       registeredByOfficerName: officer.fullName,
@@ -509,6 +556,42 @@ export const officerService = {
       scheduledReviewDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
     };
     saveToStorage(STORAGE_KEYS.DETECTIVE_DOCKETS, [newDocket, ...existingDockets]);
+
+    // Make station-received evidence independently available in the detective
+    // document register, including the original preview data and exhibit notes.
+    const existingDetectiveDocuments = loadFromStorage<CaseDocumentRecord[]>(STORAGE_KEYS.DETECTIVE_DOCUMENTS, []);
+    const stationEvidenceDocuments: CaseDocumentRecord[] = input.evidenceItems.map((item, index) => ({
+      id: `station_evidence_${Date.now()}_${index}`,
+      caseNumber: officialCasNumber,
+      documentRef: `STATION-EVID-${String(index + 1).padStart(2, '0')}`,
+      title: item.name,
+      category: 'Crime Scene Photos',
+      description: `Digital evidence received and logged at the station during official CAS registration by ${officer.rank} ${officer.fullName}.`,
+      fileFormat: item.type || 'Evidence file',
+      fileSize: `${Math.max(1, Math.round(item.size / 1024))} KB`,
+      dataUrl: item.dataUrl,
+      addedBy: officer.fullName,
+      addedByRank: officer.rank,
+      addedByPersonnelNumber: officer.personnelNumber,
+      addedAt: now.toISOString()
+    }));
+    if (input.evidenceIntakeNotes?.trim()) {
+      stationEvidenceDocuments.push({
+        id: `station_evidence_note_${Date.now()}`,
+        caseNumber: officialCasNumber,
+        documentRef: 'STATION-EVID-NOTES',
+        title: 'Officer Evidence and Exhibit Notes',
+        category: 'Documentary / Financial Audit',
+        description: input.evidenceIntakeNotes.trim(),
+        fileFormat: 'Station intake record',
+        fileSize: 'Text record',
+        addedBy: officer.fullName,
+        addedByRank: officer.rank,
+        addedByPersonnelNumber: officer.personnelNumber,
+        addedAt: now.toISOString()
+      });
+    }
+    if (stationEvidenceDocuments.length) saveToStorage(STORAGE_KEYS.DETECTIVE_DOCUMENTS, [...stationEvidenceDocuments, ...existingDetectiveDocuments]);
 
     // SYNC TO DETECTIVE MOVEMENTS: Permanent Movement Record with all 9 required fields
     const existingDetMovements = loadFromStorage<DocketTransferMovement[]>(STORAGE_KEYS.DETECTIVE_MOVEMENTS, []);
@@ -566,7 +649,7 @@ export const officerService = {
     const initialDiary = {
       id: `dia_${Date.now()}_init`,
       caseNumber: officialCasNumber,
-      actionTaken: `Official case opened from verified intake report ${report.referenceNumber}. Complainant ID verified and sworn statements formalized.`,
+      actionTaken: `Official case opened from verified intake report ${report.referenceNumber}. Complainant ID verified and formal statement captured.${input.evidenceItems.length ? ` Evidence logged: ${input.evidenceItems.map((item) => item.name).join(', ')}.` : ''}${input.evidenceIntakeNotes ? ` Physical exhibit details: ${input.evidenceIntakeNotes}` : ''}`,
       resultOutcome: `Registered under official ${officialCasNumber}. Docket handed over to Detective Branch.`,
       documentReference: 'CASE-REGISTRATION-VERIFICATION',
       nextActionRequired: 'Detective acknowledgment of docket receipt and initial investigation planning.',
@@ -670,7 +753,7 @@ export const officerService = {
       reportReference: params.reportReference,
       offence: params.offence,
       complainantName: params.complainantName,
-      origin: 'SAPS Sandton Police Station',
+      origin: 'SAPS Berea Police Station',
       destination: params.destination,
       initiatedBy: `${officer.rank} ${officer.fullName}`,
       initiatedByPersonnelNumber: officer.personnelNumber,

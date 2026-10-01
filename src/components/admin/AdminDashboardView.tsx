@@ -73,9 +73,8 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Users */}
         <div 
-          onClick={() => onNavigate('users')}
-          className={`p-4 rounded-md border transition-colors cursor-pointer group flex flex-col justify-between ${
-            isDark ? 'bg-black border-slate-800 hover:border-blue-600' : 'bg-white border-slate-200 hover:border-blue-600'
+          className={`p-4 rounded-md border flex flex-col justify-between ${
+            isDark ? 'bg-black border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
           <div className="flex items-center justify-between">
@@ -101,9 +100,8 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
         {/* Active Personnel Accounts */}
         <div 
-          onClick={() => onNavigate('users')}
-          className={`p-4 rounded-md border transition-colors cursor-pointer group flex flex-col justify-between ${
-            isDark ? 'bg-black border-slate-800 hover:border-blue-600' : 'bg-white border-slate-200 hover:border-blue-600'
+          className={`p-4 rounded-md border flex flex-col justify-between ${
+            isDark ? 'bg-black border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
           <div className="flex items-center justify-between">
@@ -129,9 +127,8 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
         {/* Complainant Accounts */}
         <div 
-          onClick={() => onNavigate('users')}
-          className={`p-4 rounded-md border transition-colors cursor-pointer group flex flex-col justify-between ${
-            isDark ? 'bg-black border-slate-800 hover:border-blue-600' : 'bg-white border-slate-200 hover:border-blue-600'
+          className={`p-4 rounded-md border flex flex-col justify-between ${
+            isDark ? 'bg-black border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
           <div className="flex items-center justify-between">
@@ -157,9 +154,8 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
         {/* Inactive Accounts */}
         <div 
-          onClick={() => onNavigate('users')}
-          className={`p-4 rounded-md border transition-colors cursor-pointer group flex flex-col justify-between ${
-            isDark ? 'bg-black border-slate-800 hover:border-blue-600' : 'bg-white border-slate-200 hover:border-blue-600'
+          className={`p-4 rounded-md border flex flex-col justify-between ${
+            isDark ? 'bg-black border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
           <div className="flex items-center justify-between">

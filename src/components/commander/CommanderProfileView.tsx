@@ -94,7 +94,7 @@ export const CommanderProfileView: React.FC<CommanderProfileViewProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
           <div className="p-4 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1">
             <span className="text-slate-400 block text-[11px]">Assigned Station Jurisdiction:</span>
-            <strong className="text-white text-sm block">{commander.station || 'SAPS Sandton Police Station'}</strong>
+            <strong className="text-white text-sm block">{commander.station || 'SAPS Berea Police Station'}</strong>
             <span className="text-[10px] text-slate-400">Gauteng Provincial Division</span>
           </div>
 

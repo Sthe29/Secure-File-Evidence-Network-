@@ -15,7 +15,9 @@ import {
   Building2, 
   ChevronDown, 
   ChevronUp,
-  ChevronRight
+  ChevronRight,
+  PhoneCall,
+  MapPin
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -56,13 +58,26 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         </p>
       </div>
 
+      <section className={`border-l-4 border-red-600 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 ${isDark ? 'bg-red-950/35 text-white' : 'bg-red-50 text-slate-950'}`}>
+        <div className="flex gap-3">
+          <AlertCircle className="text-red-600 shrink-0" size={22} />
+          <div>
+            <h2 className="text-sm font-bold">Emergency or crime in progress?</h2>
+            <p className={`text-xs mt-1 ${isDark ? 'text-red-100/85' : 'text-red-900/80'}`}>Call 10111 immediately. You can then use Report Incident to share a GPS-pinned location and mark the report for urgent station attention.</p>
+          </div>
+        </div>
+        <div className="flex gap-2 shrink-0">
+          <a href="tel:10111" className="px-3.5 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-md inline-flex items-center gap-1.5"><PhoneCall size={14} /> Call 10111</a>
+          <button type="button" onClick={() => onNavigate('report-incident')} className="px-3.5 py-2 border border-blue-600 text-blue-600 text-xs font-bold rounded-md inline-flex items-center gap-1.5"><MapPin size={14} /> Share location</button>
+        </div>
+      </section>
+
       {/* Metric KPI Boxes - retained on Dashboard */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Metric 1: Registered Cases */}
         <div 
-          onClick={() => onNavigate('my-cases')}
-          className={`p-4 rounded-md border transition-colors cursor-pointer group flex flex-col justify-between ${
-            isDark ? 'bg-black border-slate-800 hover:border-blue-600' : 'bg-white border-slate-200 hover:border-blue-600'
+          className={`p-4 rounded-md border flex flex-col justify-between ${
+            isDark ? 'bg-black border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
           <div className="flex items-center justify-between">
@@ -85,9 +100,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
 
         {/* Metric 2: Incident Reports */}
         <div 
-          onClick={() => onNavigate('my-reports')}
-          className={`p-4 rounded-md border transition-colors cursor-pointer group flex flex-col justify-between ${
-            isDark ? 'bg-black border-slate-800 hover:border-blue-600' : 'bg-white border-slate-200 hover:border-blue-600'
+          className={`p-4 rounded-md border flex flex-col justify-between ${
+            isDark ? 'bg-black border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
           <div className="flex items-center justify-between">
@@ -110,9 +124,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
 
         {/* Metric 3: Service Complaints */}
         <div 
-          onClick={() => onNavigate('complaints')}
-          className={`p-4 rounded-md border transition-colors cursor-pointer group flex flex-col justify-between ${
-            isDark ? 'bg-black border-slate-800 hover:border-blue-600' : 'bg-white border-slate-200 hover:border-blue-600'
+          className={`p-4 rounded-md border flex flex-col justify-between ${
+            isDark ? 'bg-black border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
           <div className="flex items-center justify-between">

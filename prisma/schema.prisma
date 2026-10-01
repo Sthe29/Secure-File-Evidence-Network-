@@ -15,11 +15,18 @@ enum UserRole {
   ADMINISTRATOR
 }
 
+enum AccountStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
 enum ReportStatus {
   AWAITING_REVIEW
   UNDER_STATION_REVIEW
   ADDITIONAL_INFO_REQUIRED
   REGISTERED_TO_CASE
+  ARCHIVED
 }
 
 enum CaseStatus {
@@ -55,14 +62,17 @@ enum ReviewOutcome {
 model User {
   id              String   @id @default(cuid())
   email           String   @unique
+  nationalId      String?  @unique
   personnelNumber String?  @unique
   passwordHash    String
+  mustChangePassword Boolean @default(false)
   fullName        String
   rank            String?
   station         String?
   division        String?
   phoneNumber     String?
   role            UserRole
+  accountStatus   AccountStatus @default(ACTIVE)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   reports         IncidentReport[] @relation("ComplainantReports")
@@ -83,9 +93,12 @@ model IncidentReport {
   city            String
   province        String
   preferredStation String?
+  latitude        Float?
+  longitude       Float?
   description     String
   involvedParties Json?
   attachments     Json?
+  requiresImmediateAttention Boolean    @default(false)
   status          ReportStatus @default(AWAITING_REVIEW)
   stationNotes    String?
   createdAt       DateTime     @default(now())

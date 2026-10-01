@@ -137,7 +137,7 @@ export const CommanderPage: React.FC<CommanderPageProps> = ({
   return (
     <div 
       id="commander-portal" 
-      className={`min-h-screen flex flex-col justify-between selection:bg-blue-600 selection:text-white ${
+      className={`sfen-shell sfen-staff-shell min-h-screen flex flex-col justify-between selection:bg-blue-600 selection:text-white ${
         isDark ? 'bg-black text-white' : 'bg-white text-black'
       }`}
     >
@@ -215,7 +215,7 @@ export const CommanderPage: React.FC<CommanderPageProps> = ({
         </div>
 
         {/* Scrollable View Content (Right) */}
-        <main className="flex-1 min-w-0 py-6 sm:py-8 md:pl-8">
+        <main className={`sfen-content flex-1 min-w-0 py-6 sm:py-8 md:pl-8 ${activeTab === 'dashboard' ? 'sfen-dashboard' : ''}`}>
           
           {/* Global Toast */}
           {toastMessage && (
@@ -328,7 +328,7 @@ export const CommanderPage: React.FC<CommanderPageProps> = ({
       }`}>
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>
-            {user.station || 'SAPS Sandton Police Station'} • Republic of South Africa
+            {user.station || 'SAPS Berea Police Station'} • Republic of South Africa
           </span>
           <span className="font-mono">
             Station Commander: {user.rank} {user.fullName} ({user.personnelNumber})

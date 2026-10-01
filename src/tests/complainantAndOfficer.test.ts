@@ -101,6 +101,8 @@ describe('Complainant & Police Officer Front Desk Tests', () => {
       chargeDescription: 'Theft of Electronics',
       statutoryCode: 'CPA Sec 82',
       priorityLevel: 'Standard',
+      formalStatement: 'The complainant confirmed this formal statement at the station desk.',
+      evidenceItems: [],
       initialDocketDestination: 'Investigating Officer Desk',
       officerIntakeNotes: 'Duly verified statement and registered official docket.'
     }, mockOfficerUser);

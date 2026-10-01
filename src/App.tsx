@@ -9,9 +9,8 @@ import { DetectivePage } from './components/detective/DetectivePage';
 import { CommanderPage } from './components/commander/CommanderPage';
 import { ForgotPasswordModal } from './components/ForgotPasswordModal';
 import { AuthenticationSuccessModal } from './components/AuthenticationSuccessModal';
-import { DemoAccountsDrawer } from './components/DemoAccountsDrawer';
-import { UserProfile, DemoAccount, PortalType, CitizenProfile } from './types/auth';
-import { Users, ShieldCheck, ArrowLeft, Sun, Moon, ArrowRight, Key } from 'lucide-react';
+import { UserProfile, PortalType, CitizenProfile } from './types/auth';
+import { ArrowLeft, Sun, Moon } from 'lucide-react';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 
 function AppContent() {
@@ -31,12 +30,24 @@ function AppContent() {
   const [authenticatedOfficer, setAuthenticatedOfficer] = useState<UserProfile | null>(() => {
     try {
       const stored = localStorage.getItem('sfen_authenticated_officer');
-      return stored ? JSON.parse(stored) : null;
+      const session = stored ? JSON.parse(stored) as UserProfile : null;
+      // Sessions created by the pre-backend prototype used placeholder tokens.
+      // They cannot be authorised by PostgreSQL-backed API routes.
+      if (session?.token?.startsWith('jwt_mock_')) {
+        localStorage.removeItem('sfen_authenticated_officer');
+        localStorage.removeItem('sfen_auth_token');
+        return null;
+      }
+      if (session?.station?.includes('Sandton') || session?.station?.includes('Durban Central')) {
+        const updatedSession = { ...session, station: 'SAPS Berea Police Station' };
+        localStorage.setItem('sfen_authenticated_officer', JSON.stringify(updatedSession));
+        return updatedSession;
+      }
+      return session;
     } catch {
       return null;
     }
   });
-  const [selectedDemoAccount, setSelectedDemoAccount] = useState<DemoAccount | null>(null);
 
   // Citizen Session State
   const [authenticatedCitizen, setAuthenticatedCitizen] = useState<CitizenProfile | null>(() => {
@@ -53,6 +64,7 @@ function AppContent() {
   // Shared Modals
   const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
   const [forgotPasswordIdentifier, setForgotPasswordIdentifier] = useState('');
+  const [forgotPasswordAudience, setForgotPasswordAudience] = useState<'citizen' | 'official'>('citizen');
 
   const handleOfficerLoginSuccess = (user: UserProfile) => {
     setAuthenticatedOfficer(user);
@@ -92,96 +104,10 @@ function AppContent() {
     }
   };
 
-  // Direct quick demo logins for testing
-  const handleDirectDemoCitizenLogin = () => {
-    const demoCitizen: CitizenProfile = {
-      id: 'ctz_thandi_01',
-      fullName: 'Thandi Molefe',
-      email: 'thandi.molefe@gmail.com',
-      phoneNumber: '0825550192',
-      registeredAt: '2026-03-10T09:15:00Z',
-      activeDocketsCount: 1,
-      residentialAddress: '42 Nelson Mandela Boulevard, Morningside, Johannesburg',
-      nationalId: '920412 5082 089'
-    };
-    setAuthenticatedCitizen(demoCitizen);
-  };
-
-  const handleDirectDemoAdminLogin = () => {
-    const demoAdmin: UserProfile = {
-      id: 'usr_admin_01',
-      personnelNumber: 'POL-40199',
-      fullName: 'Marcus Cole',
-      rank: 'Chief ICT Security Officer',
-      email: 'm.cole@admin.sfen.gov',
-      station: 'National Police Directorate',
-      division: 'Information & Cryptographic Security',
-      role: 'ADMINISTRATOR',
-      clearanceLevel: 'Level 4 - National Security & Full Docket Audits',
-      lastLogin: new Date().toISOString(),
-      token: 'jwt_mock_admin_token_sfen_2026'
-    };
-    setAuthenticatedOfficer(demoAdmin);
-  };
-
-  const handleDirectDemoOfficerLogin = () => {
-    const demoOfficer: UserProfile = {
-      id: 'usr_csc_01',
-      personnelNumber: 'POL-10824',
-      fullName: 'Sarah Ndlovu',
-      rank: 'Constable',
-      email: 's.ndlovu@saps.gov.za',
-      station: 'SAPS Sandton Police Station',
-      division: 'Community Service Centre (CSC) Frontline Intake',
-      role: 'CSC_OFFICER',
-      clearanceLevel: 'Level 1 - Frontline Intake & Registration',
-      lastLogin: new Date().toISOString(),
-      token: 'jwt_mock_officer_token_sfen_2026'
-    };
-    setAuthenticatedOfficer(demoOfficer);
-  };
-
-  const handleDirectDemoDetectiveLogin = () => {
-    const demoDetective: UserProfile = {
-      id: 'usr_pol_20491',
-      personnelNumber: 'POL-20491',
-      fullName: 'David Khumalo',
-      rank: 'Detective Inspector',
-      email: 'd.khumalo@saps.gov.za',
-      station: 'SAPS Sandton Police Station',
-      division: 'Commercial Crime Section - Specialist Desk',
-      role: 'DETECTIVE',
-      clearanceLevel: 'Level 2 - Specialist Docket Custody & CID',
-      lastLogin: new Date().toISOString(),
-      token: 'jwt_mock_detective_token_sfen_2026'
-    };
-    setAuthenticatedOfficer(demoDetective);
-  };
-
-  const handleDirectDemoCommanderLogin = () => {
-    const demoCommander: UserProfile = {
-      id: 'usr_pol_30912',
-      personnelNumber: 'POL-30912',
-      fullName: 'Elena Vance',
-      rank: 'Senior Superintendent',
-      email: 'e.vance@command.sfen.gov',
-      station: 'SAPS Sandton Police Station',
-      division: 'Station Commander / CID Executive Oversight',
-      role: 'COMMANDER',
-      clearanceLevel: 'Level 3 - Station Command & Docket Authorization',
-      lastLogin: new Date().toISOString(),
-      token: 'jwt_mock_commander_token_sfen_2026'
-    };
-    setAuthenticatedOfficer(demoCommander);
-  };
-
-  const handleOpenForgotPassword = (identifier: string) => {
+  const handleOpenForgotPassword = (identifier: string, audience: 'citizen' | 'official') => {
     setForgotPasswordIdentifier(identifier);
+    setForgotPasswordAudience(audience);
     setIsForgotPasswordOpen(true);
-  };
-
-  const handleSelectDemoAccount = (account: DemoAccount) => {
-    setSelectedDemoAccount(account);
   };
 
   // When user clicks one of the 4 capability buttons on the welcoming page:
@@ -276,13 +202,13 @@ function AppContent() {
             setTargetRoleNotice(null);
             setViewMode('portal');
           }}
-          onActionRequiresLogin={handleActionRequiresLogin}
         />
 
         <ForgotPasswordModal
           isOpen={isForgotPasswordOpen}
           onClose={() => setIsForgotPasswordOpen(false)}
           initialIdentifier={forgotPasswordIdentifier}
+          audience={forgotPasswordAudience}
         />
       </>
     );
@@ -290,7 +216,7 @@ function AppContent() {
 
   // Portal Mode (Sign In / Registration Screen)
   return (
-    <div className={`min-h-screen flex flex-col justify-between selection:bg-blue-600 selection:text-white ${
+    <div className={`sfen-shell min-h-screen flex flex-col justify-between selection:bg-blue-600 selection:text-white ${
       isDark ? 'bg-black text-white' : 'bg-white text-black'
     }`}>
       
@@ -336,77 +262,16 @@ function AppContent() {
       {/* Main Container */}
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-8 max-w-5xl mx-auto w-full">
         
-        {/* Main Portal Switcher - Flat tabs separated by a line going side by side */}
-        <div className={`w-full max-w-md mx-auto mb-6 flex border-b ${
-          isDark ? 'border-white/15' : 'border-black/15'
-        }`}>
-          <button
-            type="button"
-            id="portal-tab-citizen"
-            onClick={() => {
-              setActivePortal('citizen');
-              setAuthenticatedOfficer(null);
-            }}
-            className={`flex-1 py-2.5 px-3 font-bold text-xs sm:text-sm border-b-2 transition-colors flex items-center justify-center gap-2 cursor-pointer ${
-              activePortal === 'citizen'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Users size={16} />
-            <span>Citizen Portal</span>
-          </button>
-
-          <button
-            type="button"
-            id="portal-tab-officials"
-            onClick={() => {
-              setActivePortal('official');
-              setAuthenticatedCitizen(null);
-            }}
-            className={`flex-1 py-2.5 px-3 font-bold text-xs sm:text-sm border-b-2 transition-colors flex items-center justify-center gap-2 cursor-pointer ${
-              activePortal === 'official'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <ShieldCheck size={16} />
-            <span>Police Officials</span>
-          </button>
-        </div>
-
         {/* CITIZEN PORTAL */}
         {activePortal === 'citizen' && (
           <div className="w-full flex flex-col items-center">
             <CitizenPortal
               onSuccess={handleCitizenLoginSuccess}
-              onForgotPassword={handleOpenForgotPassword}
+              onForgotPassword={(identifier) => handleOpenForgotPassword(identifier, 'citizen')}
               targetRoleNotice={targetRoleNotice}
               initialAuthMode={citizenInitialMode}
             />
 
-            {/* Quick Demo Access for Complainant */}
-            <div className="mt-4 w-full max-w-md">
-              <button
-                type="button"
-                id="btn-quick-demo-complainant"
-                onClick={handleDirectDemoCitizenLogin}
-                className={`w-full py-2.5 px-3 rounded-md border text-xs font-semibold transition-colors flex items-center justify-between cursor-pointer ${
-                  isDark 
-                    ? 'border-blue-600/40 hover:border-blue-600 bg-black text-blue-400' 
-                    : 'border-blue-600/40 hover:border-blue-600 bg-white text-blue-700'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <Key size={14} className="text-blue-600" />
-                  <span>Instant Test Login: Complainant (Thandi Molefe)</span>
-                </div>
-                <div className="flex items-center gap-1 text-[11px] text-blue-600 font-bold">
-                  <span>Enter</span>
-                  <ArrowRight size={13} />
-                </div>
-              </button>
-            </div>
           </div>
         )}
 
@@ -422,85 +287,9 @@ function AppContent() {
               <div className="w-full flex flex-col items-center">
                 <LoginForm
                   onSuccess={handleOfficerLoginSuccess}
-                  onForgotPassword={handleOpenForgotPassword}
-                  prefillAccount={selectedDemoAccount}
+                  onForgotPassword={(identifier) => handleOpenForgotPassword(identifier, 'official')}
                   targetRoleNotice={targetRoleNotice}
                 />
-
-                {/* Direct Role Test Buttons */}
-                <div className="mt-4 w-full max-w-md space-y-2">
-                  <button
-                    type="button"
-                    id="btn-quick-demo-commander"
-                    onClick={handleDirectDemoCommanderLogin}
-                    className={`w-full py-2 px-3 rounded-md border text-xs font-semibold transition-colors flex items-center justify-between cursor-pointer ${
-                      isDark 
-                        ? 'border-white/10 hover:border-blue-600 bg-black text-slate-300' 
-                        : 'border-black/10 hover:border-blue-600 bg-white text-slate-800'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Key size={13} className="text-blue-600" />
-                      <span>Station Commander (Snr. Supt. Elena Vance)</span>
-                    </div>
-                    <ArrowRight size={13} className="text-blue-600" />
-                  </button>
-
-                  <button
-                    type="button"
-                    id="btn-quick-demo-detective"
-                    onClick={handleDirectDemoDetectiveLogin}
-                    className={`w-full py-2 px-3 rounded-md border text-xs font-semibold transition-colors flex items-center justify-between cursor-pointer ${
-                      isDark 
-                        ? 'border-white/10 hover:border-blue-600 bg-black text-slate-300' 
-                        : 'border-black/10 hover:border-blue-600 bg-white text-slate-800'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Key size={13} className="text-blue-600" />
-                      <span>Detective Inspector (David Khumalo)</span>
-                    </div>
-                    <ArrowRight size={13} className="text-blue-600" />
-                  </button>
-
-                  <button
-                    type="button"
-                    id="btn-quick-demo-officer"
-                    onClick={handleDirectDemoOfficerLogin}
-                    className={`w-full py-2 px-3 rounded-md border text-xs font-semibold transition-colors flex items-center justify-between cursor-pointer ${
-                      isDark 
-                        ? 'border-white/10 hover:border-blue-600 bg-black text-slate-300' 
-                        : 'border-black/10 hover:border-blue-600 bg-white text-slate-800'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Key size={13} className="text-blue-600" />
-                      <span>Police Officer (Constable Sarah Ndlovu)</span>
-                    </div>
-                    <ArrowRight size={13} className="text-blue-600" />
-                  </button>
-
-                  <button
-                    type="button"
-                    id="btn-quick-demo-admin"
-                    onClick={handleDirectDemoAdminLogin}
-                    className={`w-full py-2 px-3 rounded-md border text-xs font-semibold transition-colors flex items-center justify-between cursor-pointer ${
-                      isDark 
-                        ? 'border-white/10 hover:border-blue-600 bg-black text-slate-300' 
-                        : 'border-black/10 hover:border-blue-600 bg-white text-slate-800'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Key size={13} className="text-blue-600" />
-                      <span>System Administrator (Marcus Cole)</span>
-                    </div>
-                    <ArrowRight size={13} className="text-blue-600" />
-                  </button>
-                </div>
-
-                <div className="mt-4 w-full max-w-md">
-                  <DemoAccountsDrawer onSelectAccount={handleSelectDemoAccount} />
-                </div>
               </div>
             )}
           </div>
@@ -512,6 +301,7 @@ function AppContent() {
         isOpen={isForgotPasswordOpen}
         onClose={() => setIsForgotPasswordOpen(false)}
         initialIdentifier={forgotPasswordIdentifier}
+        audience={forgotPasswordAudience}
       />
 
       {/* Official Legal Footer */}

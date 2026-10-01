@@ -9,7 +9,9 @@ import {
   Clock, 
   History,
   CheckCircle2,
-  FileCheck2
+  FileCheck2,
+  KeyRound,
+  Loader2
 } from 'lucide-react';
 
 interface OfficerProfileViewProps {
@@ -24,6 +26,29 @@ export const OfficerProfileView: React.FC<OfficerProfileViewProps> = ({
   onSignOut
 }) => {
   const [activeTab, setActiveTab] = useState<'profile' | 'traceability'>('profile');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  const handleChangePassword = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setPasswordMessage(null);
+    setPasswordError(null);
+    if (newPassword.length < 8) return setPasswordError('Your new password must contain at least 8 characters.');
+    if (newPassword !== confirmPassword) return setPasswordError('The new passwords do not match.');
+    setIsChangingPassword(true);
+    try {
+      const response = await fetch('/api/auth/change-password', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${officer.token}` }, body: JSON.stringify({ currentPassword, newPassword }) });
+      const payload = await response.json() as { message?: string };
+      if (!response.ok) throw new Error(payload.message || 'Unable to change your password.');
+      setPasswordMessage(payload.message || 'Password changed successfully.');
+      setCurrentPassword(''); setNewPassword(''); setConfirmPassword('');
+    } catch (reason) { setPasswordError(reason instanceof Error ? reason.message : 'Unable to change your password.'); }
+    finally { setIsChangingPassword(false); }
+  };
 
   // Filter logs for this officer
   const officerLogs = auditLogs.filter(
@@ -97,7 +122,7 @@ export const OfficerProfileView: React.FC<OfficerProfileViewProps> = ({
                 </p>
 
                 <p className="text-xs text-slate-500 font-mono">
-                  Station: {officer.station || 'SAPS Sandton Police Station'}
+                  Station: {officer.station || 'SAPS Berea Police Station'}
                 </p>
               </div>
             </div>
@@ -111,7 +136,7 @@ export const OfficerProfileView: React.FC<OfficerProfileViewProps> = ({
 
               <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1">
                 <span className="text-slate-400 font-semibold block text-[11px]">Primary Station</span>
-                <span className="font-semibold text-white">{officer.station || 'SAPS Sandton Police Station'}</span>
+                <span className="font-semibold text-white">{officer.station || 'SAPS Berea Police Station'}</span>
               </div>
 
               <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1">
@@ -124,6 +149,22 @@ export const OfficerProfileView: React.FC<OfficerProfileViewProps> = ({
                 <span className="font-mono text-emerald-400">● Single Station Verified</span>
               </div>
             </div>
+
+            <form onSubmit={handleChangePassword} className="p-5 rounded-xl bg-slate-950 border border-slate-800 space-y-4">
+              <div className="flex items-center gap-2 text-white">
+                <KeyRound size={16} className="text-blue-400" />
+                <h3 className="text-sm font-bold">Change Password</h3>
+              </div>
+              <p className="text-xs text-slate-400">Use your current password to set a new password for this officer account.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <label className="text-xs text-slate-300">Current password<input required type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} className="mt-1.5 w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-white" /></label>
+                <label className="text-xs text-slate-300">New password<input required type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} className="mt-1.5 w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-white" /></label>
+                <label className="text-xs text-slate-300">Confirm new password<input required type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} className="mt-1.5 w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-white" /></label>
+              </div>
+              {passwordError && <p role="alert" className="text-xs text-red-300">{passwordError}</p>}
+              {passwordMessage && <p className="text-xs text-emerald-300 flex items-center gap-1.5"><CheckCircle2 size={14} />{passwordMessage}</p>}
+              <button type="submit" disabled={isChangingPassword} className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold flex items-center gap-2">{isChangingPassword && <Loader2 size={14} className="animate-spin" />}Change Password</button>
+            </form>
 
             {/* Statutory Compliance Notice */}
             <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-400 leading-relaxed flex items-start gap-2.5">
